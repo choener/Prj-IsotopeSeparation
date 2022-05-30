@@ -18,13 +18,13 @@
       };
       pyenv = pkgs.python37.withPackages (p: [
         #p.arviz
-        #p.matplotlib
-        #p.numpy
-        #p.pandas
-        p.pymc3
-        #p.seaborn
-        p.scikitlearn
         p.h5py
+        p.matplotlib
+        p.numpy
+        p.pandas
+        p.pymc3
+        p.scikitlearn
+        p.seaborn
       ]);
 
     in rec {
