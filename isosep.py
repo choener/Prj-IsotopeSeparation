@@ -34,7 +34,10 @@ def fast5Handler (fname):
   fast5 = h5py.File(fname, 'r')
   ns = []
   ms = []
+  i=0
   for r in fast5.keys():
+    i+=1
+    if i>=100: break
     s = maximalRunOf(fast5[r])
     rawSignal = fast5[r]['Raw/Signal'][:]
     start = fast5[r][f'Analyses/Segmentation_{s:03d}/Summary/segmentation'].attrs['first_sample_template']
@@ -49,7 +52,6 @@ def fast5Handler (fname):
     nstats = NucleotideStats(fastq)
     ns.append(nstats)
     ms.append(np.mean(pA))
-    break
   fast5.close()
   return (ns,ms)
 
@@ -62,7 +64,6 @@ def fast5Handler (fname):
 
 def model (ns, ms):
   ks = set()
-  print(ns)
   for n in ns:
     for k in n.k1.keys():
       ks.add(k)
@@ -72,25 +73,24 @@ def model (ns, ms):
     s1 = sum(n.k1.values())
     arr = np.array([n.k1[k] / s1 for k in ks])
     xs.append(arr)
-  XS = Data('X', value = np.vstack(xs))
-  ys = Data('y', value = np.array(ms))
-  print(XS)
-  print(ys)
   with Model():
+    XS = Data('X', value = np.vstack(xs))
+    ys = Data('y', value = np.array(ms))
     intercept = Normal('Intercept', 0, sd=30)
-    beta = Normal('beta', 0, sd=30, shape=(len(ks)))
-    epsilon = HalfCauchy('epsilon', 5)
-    mu = intercept + beta * XS
+    beta = Normal('β', 0, sd=30, shape=(len(ks)))
+    mu = intercept + math.dot(XS, beta)
+    epsilon = HalfCauchy('ε', 5)
     likelihood = Normal('ys', mu, epsilon, observed = ys)
-    trace = sample(10)
+    trace = sample(1000)
     traceDF = trace_to_dataframe(trace)
     print(traceDF.describe())
     scatter_matrix(traceDF, figsize=(8,8))
     plt.savefig('fuck.png')
 
 def main ():
-  print('enter')
-  dir = '/data/fass5/reads/heavy_atoms_deuterium_taubert/basecalled_fast5s/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
+  print(f'PyMC3 v{mc.__version__}')
+  #dir = '/data/fass5/reads/heavy_atoms_deuterium_taubert/basecalled_fast5s/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
+  dir = '.'
   ns, ms = fast5Handler(dir + '/' + 'FAR96927_a59606f5_0.fast5')
   model(ns, ms)
 
