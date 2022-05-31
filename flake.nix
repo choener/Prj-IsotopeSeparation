@@ -29,13 +29,19 @@
 
     in rec {
       devShell = pkgs.mkShell {
-        buildInputs = [ pyenv ];
+        buildInputs = with pkgs; [ pyenv hdf5 ont_vbz_compression ];
+        HDF5_PLUGIN_PATH="${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib";
       };
+      #devShells."vbz" = pkgs.mkShell {
+      #  buildInputs = with pkgs; [ cmake ]
+      #};
+      packages."vbz" = pkgs.ont_vbz_compression;
     }; # eachSystem
 
     # python3.7 is needed for pymc3. However, do *not* override "python", otherwise we rebuild have
     # the world!
     overlay = final: prev: {
+      ont_vbz_compression = final.callPackage ./pkgs/vbz {};
       #python37 = prev.python37.override {
       #  #packageOverrides = pself: psuper: {
       #  #  tensorflow = pself.tensorflow_2;
