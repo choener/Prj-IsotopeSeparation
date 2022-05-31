@@ -118,7 +118,10 @@ def model (pdd):
     beta = Normal('β', 0, sd=30, shape=(len(ks), 1))
     # additional change in beta, if the label equals 1
     # gamma = Normal('γ', 0, sd=30, shape=(len(ks), 1))
-    mu = intercept + math.dot(XS, beta) # + ls * gamma)
+    # NOTE this actually works, which means I can probably write a model that uses scalars
+    # throughout
+    mu = intercept
+    mu += math.dot(XS, beta) # + ls * gamma)
     epsilon = HalfCauchy('ε', 5)
     likelihood = Normal('ys', mu, epsilon, observed = ys)
     trace = sample(1000, chains=1, init="adapt_diag")
