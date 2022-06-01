@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pandas
 import pymc3 as mc
+from pathlib import Path
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
@@ -79,6 +80,7 @@ def fast5Handler (labels,fname):
     else:
       ls.append(-1)
   fast5.close()
+  print(len(ns))
   # TODO construct data frame, where we can then later cut things away
   return pandas.DataFrame(
     { 'nstats': ns
@@ -109,22 +111,34 @@ def model (pdd):
     for k in n.k1.keys():
       ks.add(k)
   # create vectorized data
-  xs = createData(ks,pd)
+  xs = np.vstack(createData(ks,pd))
   with Model():
-    XS = Data('X', value = np.vstack(xs))
+    XS = {}
+    i = 0
+    for k in ks:
+      XS[k] = Data('data_'+k, value = xs[:,i])
+      i += 1
     ys = Data('y', value = np.array(pd['means']))
     ls = Data('c', value = np.array(pd['labels']))
-    intercept = Normal('Intercept', 0, sd=30)
-    beta = Normal('β', 0, sd=30, shape=(len(ks), 1))
+    intercept = Normal('Intercept', np.mean(pd['means']), sd=5)
+    beta = {}
+    for k in ks:
+      beta[k] = Normal('β'+k, 0, sd=30) #, shape=(len(ks), 1))
+    gamma = {}
+    gamma['Intercept'] = Normal('gIntercept', 0, sd=1)
+    for k in ks:
+      gamma[k] = Normal('g'+k, 0, sd=1)
     # additional change in beta, if the label equals 1
     # gamma = Normal('γ', 0, sd=30, shape=(len(ks), 1))
     # NOTE this actually works, which means I can probably write a model that uses scalars
     # throughout
     mu = intercept
-    mu += math.dot(XS, beta) # + ls * gamma)
+    for b in beta:
+      mu += XS[b] * beta[b]
+      mu += XS[b] * ls * gamma[b]
     epsilon = HalfCauchy('ε', 5)
     likelihood = Normal('ys', mu, epsilon, observed = ys)
-    trace = sample(1000, chains=1, init="adapt_diag")
+    trace = sample(1000, chains=4, init="adapt_diag")
     traceDF = trace_to_dataframe(trace)
     print(traceDF.describe())
     #scatter_matrix(traceDF, figsize=(8,8))
@@ -137,8 +151,19 @@ def main ():
   labels['0'] = getIdLabels('barcode14.ids')
   labels['30'] = getIdLabels('barcode15.ids')
   labels['100'] = getIdLabels('barcode16.ids')
-  dir = '/shared/choener/Workdata/heavy_atoms_deuterium_taubert/tests'
-  pd = fast5Handler(labels,dir + '/' + 'FAR96927_a59606f5_0.fast5')
+  #dir = '/shared/choener/Workdata/heavy_atoms_deuterium_taubert/tests'
+  #dir = '.'
+  dir = '/data/fass5/reads/heavy_atoms_deuterium_taubert/basecalled_fast5s/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
+  pds = []
+  cnt = 0
+  for path in Path(dir).rglob(f'*.fast5'):
+    cnt += 1
+    if cnt > 10: break
+    pd = fast5Handler(labels,path)
+    pds.append(pd)
+  pdAll = pandas.concat(pds)
+  # only work with data that has known labels
+  pd = pdAll[pdAll['labels'] != -1]
   model(pd)
 
 if __name__ == "__main__":
