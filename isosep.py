@@ -3,6 +3,7 @@
 from collections import Counter, OrderedDict
 from itertools import chain
 from pandas.plotting import scatter_matrix
+from pathlib import Path
 from pymc3 import *
 from pymc3 import Model, Normal, HalfCauchy, sample
 import arviz as az
@@ -11,7 +12,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pandas
 import pymc3 as mc
-from pathlib import Path
 import theano.tensor as tt
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
@@ -89,28 +89,7 @@ def fast5Handler (labels,fname):
     , 'labels': ls
     })
 
-def createData(ks1,ks2,pd):
-  xs1 = []
-  xs2 = []
-  for n in pd['nstats']:
-    s1 = sum(n.k1.values())
-    s2 = sum(n.k2.values())
-    arr1 = np.array([n.k1[k] / s1 for k in ks1])
-    arr2 = np.array([n.k2[k] / s2 for k in ks2])
-    xs1.append(arr1)
-    xs2.append(arr2)
-  return np.asmatrix(xs1), np.asmatrix(xs2)
-
-# TODO run a simple mono- and dinucleotide model for the mean of the signal. Do this for
-# raw data
-# z-score data
-# EMA data
-# beta * [A-count,C-count,G-count,T-count,1] ~ observed mean
-# now, we need to add the change due to deuterium, which might be a shift in beta?
-
-def model (pdd):
-  pd=pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
-  print(len(pd))
+def relNucComp(pd):
   ks1 = set()
   ks2 = set()
   for n in pd['nstats']:
@@ -122,13 +101,46 @@ def model (pdd):
   ks1.sort()
   ks2=list(ks2)
   ks2.sort()
-  xsMat1, xsMat2 = createData(ks1,ks2,pd)
+  #xsMat1, xsMat2 = createData(ks1,ks2,pd)
+  xs1 = []
+  xs2 = []
+  for n in pd['nstats']:
+    s1 = sum(n.k1.values())
+    s2 = sum(n.k2.values())
+    arr1 = np.array([n.k1[k] / s1 for k in ks1])
+    arr2 = np.array([n.k2[k] / s2 for k in ks2])
+    xs1.append(arr1)
+    xs2.append(arr2)
+  pd['n1rel'] = xs1
+  pd['n2rel'] = xs2
+  return # pd # np.asmatrix(xs1), np.asmatrix(xs2)
+
+# Histogram of the relative nucleotide compositions, divided by label. We want to make sure that we
+# don't accidentally condition on the nucleotide composition, instead of on the deuterium
+# composition.
+
+def nucleotideHistogram (pd):
+  # TODO plot n1rel histogram, but separate for each label !
+  pass
+
+# TODO run a simple mono- and dinucleotide model for the mean of the signal. Do this for
+# raw data
+# z-score data
+# EMA data
+# beta * [A-count,C-count,G-count,T-count,1] ~ observed mean
+# now, we need to add the change due to deuterium, which might be a shift in beta?
+
+def model (pdd):
+  pd=pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
+  print(len(pd))
   with Model():
     ys = Data('y', value = np.array(pd['means']))
     ls = Data('c', value = np.array(pd['labels']))
     #
-    xs1 = Data('xs1', value = xsMat1)
-    rows1, cols1 = xsMat1.shape
+    xs1Mat = np.asmatrix(np.vstack(pd['n1rel'].values))
+    xs1 = Data('xs1', value = xs1Mat)
+    _, cols1 = xs1Mat.shape
+    print(cols1)
     baseDisp1  = Dirichlet('bs dsp 1', np.ones(cols1))
     baseScale1 = Normal('bs scl 1', 0, sd=3)
     deutDisp1  = Dirichlet('dt dsp 1', np.ones(cols1))
@@ -148,12 +160,19 @@ def model (pdd):
     #
     epsilon = HalfCauchy('ε', 5)
     likelihood = Normal('ys', mu, epsilon, observed = ys)
-    trace = sample(1000, chains=4, init="adapt_diag")
+    trace = sample(1000, chains=2, init="adapt_diag")
     traceDF = trace_to_dataframe(trace)
     print(traceDF.describe())
+    print(traceDF['bs scl 1'] < traceDF['dt scl 1'])
     #scatter_matrix(traceDF, figsize=(8,8))
-    traceplot(trace)
-    plt.savefig('traces.pdf')
+    #traceplot(trace)
+    az.plot_posterior(trace)
+    plt.savefig('posterior.pdf')
+    as.plot_trace(trace)
+    plt.savefig('trace.pdf')
+    # TODO extract the full trace so that I can run a prob that deutscale != 0
+    # TODO extract statistics on nucleotide distribution, compare between classes to make sure we
+    # don't accidentally train just on that
 
 def main ():
   print(f'PyMC3 v{mc.__version__}')
@@ -168,8 +187,10 @@ def main ():
   for path in Path(dir).rglob(f'*.fast5'):
     pd = fast5Handler(labels,path)
     pds.append(pd)
-    #break
+    break
   pdAll = pandas.concat(pds)
+  relNucComp(pdAll)
+  nucleotideHistogram(pdAll)
   # only work with data that has known labels
   pd = pdAll[pdAll['labels'] != -1]
   model(pd)
