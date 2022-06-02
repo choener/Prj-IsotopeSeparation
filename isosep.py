@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pandas
 import pymc3 as mc
 import theano.tensor as tt
+from os.path import exists
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
@@ -113,6 +114,30 @@ def relNucComp(pd):
     xs2.append(arr2)
   pd['n1rel'] = xs1
   pd['n2rel'] = xs2
+  xs1bs = np.vstack(pd['n1rel'][pd['labels']==0])
+  xs1dt = np.vstack(pd['n1rel'][pd['labels']==1])
+#  print(xs1bs[:,0])
+#  print(xs1dt[:,0])
+#  az.plot_posterior({
+#    "A bs": xs1bs[:,0],
+#    "C bs": xs1bs[:,1],
+#    "G bs": xs1bs[:,2],
+#    "T bs": xs1bs[:,3],
+#  })
+##  plt.savefig('A.pdf')
+#  az.plot_posterior({
+#    "A dt": xs1dt[:,0],
+#    "C dt": xs1dt[:,1],
+#    "G dt": xs1dt[:,2],
+#    "T dt": xs1dt[:,3],
+#  })
+  fig, axes = plt.subplots(2,4, figsize=(40,10))
+  for c,lbl in enumerate(ks1):
+    ax = axes[0,c]
+    az.plot_posterior({lbl + ' base': xs1bs[:,c]},ax=ax, rope=(0,1))
+    ax = axes[1,c]
+    az.plot_posterior({lbl + ' deut': xs1dt[:,c]},ax=ax, rope=(0,1))
+  plt.savefig('nucleotide-distributions.pdf')
   return # pd # np.asmatrix(xs1), np.asmatrix(xs2)
 
 # Histogram of the relative nucleotide compositions, divided by label. We want to make sure that we
@@ -168,11 +193,13 @@ def model (pdd):
     #traceplot(trace)
     az.plot_posterior(trace)
     plt.savefig('posterior.pdf')
-    as.plot_trace(trace)
+    az.plot_trace(trace)
     plt.savefig('trace.pdf')
     # TODO extract the full trace so that I can run a prob that deutscale != 0
     # TODO extract statistics on nucleotide distribution, compare between classes to make sure we
     # don't accidentally train just on that
+    prob_diff = np.mean(trace[:]['bs scl 1'] < trace[:]['dt scl 1'])
+    print('P(mean_base < mean_deut) = %.2f%%' % (prob_diff * 100))
 
 def main ():
   print(f'PyMC3 v{mc.__version__}')
@@ -183,12 +210,17 @@ def main ():
   dir = '/shared/choener/Workdata/heavy_atoms_deuterium_taubert/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
   #dir = '.'
   #dir = '/data/fass5/reads/heavy_atoms_deuterium_taubert/basecalled_fast5s/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
-  pds = []
-  for path in Path(dir).rglob(f'*.fast5'):
-    pd = fast5Handler(labels,path)
-    pds.append(pd)
-    break
-  pdAll = pandas.concat(pds)
+  pdAll = None
+  if exists('./pdAll.pandas'):
+    pdAll = pandas.read_pickle('./pdAll.pandas')
+  else:
+    pds = []
+    for path in Path(dir).rglob(f'*.fast5'):
+      pd = fast5Handler(labels,path)
+      pds.append(pd)
+    allpds = pandas.concat(pds)
+    allpds.to_pickle('./pdAll.pandas')
+    pdAll = allpds
   relNucComp(pdAll)
   nucleotideHistogram(pdAll)
   # only work with data that has known labels
