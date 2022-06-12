@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 
-from collections import Counter #, OrderedDict
+from collections import Counter
 from itertools import chain
-#from pandas.plotting import scatter_matrix
+from os.path import exists
 from pathlib import Path
-#from pymc import *
 from pymc import Model, Normal, HalfCauchy, sample, Dirichlet, HalfNormal
+import aesara as ae
 import aesara.tensor as at
 import arviz as az
 import h5py
@@ -13,8 +13,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pandas
 import pymc as mc
-#import theano.tensor as tt
-from os.path import exists
+from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
@@ -156,9 +155,7 @@ def nucleotideHistogram (pd):
 # beta * [A-count,C-count,G-count,T-count,1] ~ observed mean
 # now, we need to add the change due to deuterium, which might be a shift in beta?
 
-def modelDirichletNucs (pdd):
-  pd=pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
-  print(len(pd))
+def modelDirichletNucs (pd):
   with Model():
     ys = np.array(pd['means'])
     ls = np.array(pd['labels'])
@@ -215,9 +212,7 @@ def normalize(pdd):
 # NOTE a variant with 3-mers is possible but leads to divergence of the sampler somewhat often
 # TODO normalize everything; but over all data.
 
-def modelMixtureNucs(pdd):
-  pd = pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
-  pd, pdmean, pdstddev = normalize(pdd)
+def modelMixtureNucs(pd):
   print(len(pd))
   ys = np.array(pd['means'])
   ls = np.array(pd['labels'])
@@ -230,28 +225,42 @@ def modelMixtureNucs(pdd):
   with Model() as model:
     # should be at zero, since we normalized
     mu = Normal('μ',np.mean(pd['means']))
-#    beta1 = Normal('β1', mu = np.zeros(cols1), sigma=10)
-    beta2 = Normal('β2', mu = np.zeros(cols2), sigma=10)
+    beta1 = Normal('β1', mu = np.zeros(cols1), sigma=10)
+#    beta2 = Normal('β2', mu = np.zeros(cols2), sigma=10)
 #    beta3 = Normal('β3', mu = np.zeros(cols3), sigma=10)
 #    gamma = Dirichlet('γ', [0.5,0.5])
-    deut = HalfNormal('δ', sigma = 1)
+#    deut = HalfNormal('δ', sigma = 1)
     ll = mu
-    ll += at.dot(xs2, beta2)
+    ll += at.dot(xs1, beta1)
 #    ll += gamma[0] * at.dot(xs1, beta1)
 #    ll += gamma[1] * at.dot(xs2, beta2)
-    ll += deut * ls
+#    ll += deut * ls
 #    ll += gamma[2] * at.dot(xs3, beta3)
-    error = HalfCauchy('ε', beta = 10)
-    likelihood = Normal('ys', mu = ll, sigma = error, observed = ys)
+#    error = HalfCauchy('ε', beta = 10)
+    p = mc.Deterministic('p', mc.invlogit(ll))
+#    likelihood = Normal('ys', mu = ll, sigma = error, observed = ys)
+    likelihood = mc.Bernoulli('ys', p=p, observed = ls)
     trace = sample(3000, return_inferencedata = True)
+  print('sampling finished')
+  #
   az.plot_trace(trace,figsize=(20,20))
   plt.savefig('trace.pdf')
-  az.plot_posterior(trace, var_names=['ε', 'μ', 'δ', 'β2'],figsize=(20,20))
-#  az.plot_posterior(trace, var_names='μ')
-#  az.plot_posterior(trace, var_names='γ')
-#  az.plot_posterior(trace, var_names='γ')
+  az.plot_posterior(trace, var_names=['μ', 'β1'],figsize=(20,20))
   plt.savefig('posterior.pdf',)
+  #
+  az.summary(trace, var_names = ['μ', 'β1'])
+  ppc = mc.sample_posterior_predictive(trace, model= model)
+  print(ppc)
+  #preds = np.rint(ppc['ys'].mean(axis=0).astype('int'))
+  #print(accuracy_score(preds, ls))
+  #print(f1_score(preds, ls))
+  #
+  return {} # return { 'mu': mu, 'beta1': beta1, 'deut': deut, 'err': error }
 
+def testModel(pd, mdl):
+  pass
+
+#
 
 def main ():
   print(f'PyMC v{mc.__version__}')
@@ -279,9 +288,15 @@ def main ():
   relNucComp(pdAll)
   nucleotideHistogram(pdAll)
   # only work with data that has known labels
-  pd = pdAll[pdAll['labels'] != -1]
+  pdd = pdAll[pdAll['labels'] != -1]
+  pd = pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
+  pd, pdmean, pdstddev = normalize(pdd)
+  # TODO split off train / test
+  print(len(pd))
   #modelDirichletNucs(pd)
-  modelMixtureNucs(pd)
+  splitPoint = int(0.8*len(pd))
+  mdl = modelMixtureNucs(pd[:splitPoint])
+  testModel (pd[splitPoint:], mdl)
 
 if __name__ == "__main__":
   main()
