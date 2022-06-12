@@ -243,8 +243,8 @@ def modelMixtureNucs(pd):
     trace = sample(3000, return_inferencedata = True)
   print('sampling finished')
   #
-  az.plot_trace(trace,figsize=(20,20))
-  plt.savefig('trace.pdf')
+#  az.plot_trace(trace,figsize=(20,20))
+#  plt.savefig('trace.pdf')
   az.plot_posterior(trace, var_names=['μ', 'β1'],figsize=(20,20))
   plt.savefig('posterior.pdf',)
   #
