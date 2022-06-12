@@ -244,13 +244,13 @@ def modelMixtureNucs(pdd):
     error = HalfCauchy('ε', beta = 10)
     likelihood = Normal('ys', mu = ll, sigma = error, observed = ys)
     trace = sample(3000, return_inferencedata = True)
-  az.plot_trace(trace)
+  az.plot_trace(trace,figsize=(20,20))
   plt.savefig('trace.pdf')
-  az.plot_posterior(trace, var_names=['ε', 'μ', 'δ', 'β2'])
+  az.plot_posterior(trace, var_names=['ε', 'μ', 'δ', 'β2'],figsize=(20,20))
 #  az.plot_posterior(trace, var_names='μ')
 #  az.plot_posterior(trace, var_names='γ')
 #  az.plot_posterior(trace, var_names='γ')
-  plt.savefig('posterior.pdf')
+  plt.savefig('posterior.pdf',)
 
 
 def main ():
