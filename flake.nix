@@ -1,12 +1,15 @@
 {
-  description = "RNAmodBayes: Bayesian analysis of RNA modifications";
+  description = "Isotope Separation: determine if we can separate out deuterium in ONT data";
+
+  # This uses the new pymc 4.0.0! Be very careful updating the inputs!
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/20.09";
+    nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
+    jupyterWith.url = "github:tweag/jupyterWith";
   };
 
-  outputs = { self, nixpkgs, flake-utils }: let
+  outputs = { self, nixpkgs, flake-utils, jupyterWith }: let
 
     # each system
     eachSystem = system: let
@@ -14,10 +17,10 @@
       pkgs = import nixpkgs {
         inherit system;
         inherit config;
-        overlays = [ self.overlay ];
+        overlays = nixpkgs.lib.attrValues jupyterWith.overlays ++ [ self.overlay ];
       };
-      pyenv = pkgs.python37.withPackages (p: [
-        #p.arviz
+      pyenv = pkgs.python3.withPackages (p: [
+        p.arviz
         p.h5py
         p.matplotlib
         p.numpy
@@ -25,6 +28,7 @@
         p.pymc3
         p.scikitlearn
         p.seaborn
+        p.scipy
       ]);
 
     in rec {
@@ -32,9 +36,6 @@
         buildInputs = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs ];
         HDF5_PLUGIN_PATH="${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib";
       };
-      #devShells."vbz" = pkgs.mkShell {
-      #  buildInputs = with pkgs; [ cmake ]
-      #};
       packages."vbz" = pkgs.ont_vbz_compression;
     }; # eachSystem
 
@@ -42,11 +43,6 @@
     # the world!
     overlay = final: prev: {
       ont_vbz_compression = final.callPackage ./pkgs/vbz {};
-      #python37 = prev.python37.override {
-      #  #packageOverrides = pself: psuper: {
-      #  #  tensorflow = pself.tensorflow_2;
-      #  #}; # package overrdise
-      #}; # python3 override
     };
 
   in
