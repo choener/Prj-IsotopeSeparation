@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pandas
 import pymc as mc
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+import pickle
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
@@ -199,21 +200,37 @@ def modelDirichletNucs (pd):
     #print('P(mean_base < mean_deut) = %.2f%%' % (prob_diff * 100))
 
 # Normalizes all pandas data, return the new pd frame and the mean,sigma.
+# NOTE we normalize on canonical data to make the difference more clear
 
 def normalize(pdd):
   pd = pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
-  mean = pd['means'].mean()
+  mean = pd[pd['labels']==0]['means'].mean()
   stddev = pd['means'].std()
   pd['means'] = (pd['means'] - mean) / stddev
+  print(len(pd))
+  print(len(pd[pd['labels']==0]))
   return pd, mean, stddev
 
-#
-#
-# NOTE a variant with 3-mers is possible but leads to divergence of the sampler somewhat often
-# TODO normalize everything; but over all data.
+def memoize(fname, model):
+  if exists(fname):
+    with model:
+      with open(fname,'rb') as buff:
+        trace = pickle.load(buff)
+  else:
+    with model:
+      trace = sample(tune = 1000, draws = 3000, return_inferencedata = True)
+      with open(fname, 'wb') as buff:
+        pickle.dump(trace,buff)
+  return trace
 
-def modelMixtureNucs(pd):
-  print(len(pd))
+def pdSplit(pd):
+  splitPoint = int(0.8*(len(pd)))
+  return pd[:splitPoint], pd[splitPoint:]
+
+# NOTE a variant with 3-mers is possible but leads to divergence of the sampler somewhat often
+
+def modelMixtureNucs(pdAll, k):
+  pd, test = pdSplit(pdAll)
   ys = np.array(pd['means'])
   ls = np.array(pd['labels'])
   xs1 = np.asmatrix(np.vstack(pd['n1rel'].values))
@@ -222,43 +239,83 @@ def modelMixtureNucs(pd):
   _, cols1 = xs1.shape
   _, cols2 = xs2.shape
   _, cols3 = xs3.shape
+  xs = None
+  if k==1:
+    xs = xs1
+  if k==2:
+    xs = xs2
+  if k==3:
+    xs = xs3
+  rows, cols = xs.shape
   with Model() as model:
-    # should be at zero, since we normalized
-    mu = Normal('μ',np.mean(pd['means']))
-    beta1 = Normal('β1', mu = np.zeros(cols1), sigma=10)
-#    beta2 = Normal('β2', mu = np.zeros(cols2), sigma=10)
-#    beta3 = Normal('β3', mu = np.zeros(cols3), sigma=10)
-#    gamma = Dirichlet('γ', [0.5,0.5])
-#    deut = HalfNormal('δ', sigma = 1)
-    ll = mu
-    ll += at.dot(xs1, beta1)
-#    ll += gamma[0] * at.dot(xs1, beta1)
-#    ll += gamma[1] * at.dot(xs2, beta2)
-#    ll += deut * ls
-#    ll += gamma[2] * at.dot(xs3, beta3)
-#    error = HalfCauchy('ε', beta = 10)
-    p = mc.Deterministic('p', mc.invlogit(ll))
-#    likelihood = Normal('ys', mu = ll, sigma = error, observed = ys)
-    likelihood = mc.Bernoulli('ys', p=p, observed = ls)
-    trace = sample(3000, return_inferencedata = True)
+    beta = Normal('β', mu = np.zeros(cols), sigma = 1, shape=(cols))
+    deut = Normal('δ', mu = np.zeros(cols), sigma = 1, shape=(cols))
+    ll  = at.dot(xs, beta)
+    ll += at.dot(xs, deut) * ls
+    error = HalfCauchy('ε', beta = 1)
+    likelihood = Normal('ys', mu = ll, sigma = error, observed = ys,shape=(rows))
+    trace = memoize('mixture.model', model)
   print('sampling finished')
   #
-#  az.plot_trace(trace,figsize=(20,20))
-#  plt.savefig('trace.pdf')
-  az.plot_posterior(trace, var_names=['μ', 'β1'],figsize=(20,20))
-  plt.savefig('posterior.pdf',)
+  varNames = ['ε', 'β', 'δ']
+  az.plot_trace(trace,figsize=(20,20))
+  plt.savefig(f'mixture-{k}-trace.pdf')
+  az.plot_posterior(trace, var_names = varNames,figsize=(20,20))
+  plt.savefig(f'mixture-{k}-posterior.pdf',)
   #
-  az.summary(trace, var_names = ['μ', 'β1'])
-  ppc = mc.sample_posterior_predictive(trace, model= model)
-  print(ppc)
-  #preds = np.rint(ppc['ys'].mean(axis=0).astype('int'))
-  #print(accuracy_score(preds, ls))
-  #print(f1_score(preds, ls))
+  s = az.summary(trace, var_names = varNames)
+  print(s)
+  #
+  # plot on y=0 all samples with label 0, y=1, label 1; x-axis should have adjusted mu
   #
   return {} # return { 'mu': mu, 'beta1': beta1, 'deut': deut, 'err': error }
 
-def testModel(pd, mdl):
-  pass
+#
+#
+# NOTE a variant with 3-mers is possible but leads to divergence of the sampler somewhat often
+# TODO normalize everything; but over all data.
+
+def modelLogistic(pdAll, k):
+  pd, test = pdSplit(pdAll)
+  ys = np.array(pd['means'])
+  ls = np.array(pd['labels'])
+  xs1 = np.asmatrix(np.vstack(pd['n1rel'].values))
+  xs2 = np.asmatrix(np.vstack(pd['n2rel'].values))
+  xs3 = np.asmatrix(np.vstack(pd['n3rel'].values))
+  _, cols1 = xs1.shape
+  _, cols2 = xs2.shape
+  _, cols3 = xs3.shape
+  xs = None
+  if k==1:
+    xs = xs1
+  if k==2:
+    xs = xs2
+  if k==3:
+    xs = xs3
+  rows, cols = xs.shape
+  with Model() as model:
+    XS = mc.MutableData('XS', xs)
+    LS = mc.MutableData('LS', ls)
+    # should be at zero, since we normalized
+    mu = Normal('μ',0, sigma=1)
+    beta = Normal('β', mu = np.zeros(cols), sigma=10, shape=(cols))
+    ll = mu + at.dot(XS, beta)
+    p = mc.Deterministic('p', mc.invlogit(ll))
+    likelihood = mc.Bernoulli('ys', p=p, observed = LS)
+    trace = memoize('logistic.model', model)
+  print('sampling finished')
+  varNames = ['μ', 'β']
+  az.plot_posterior(trace, var_names = varNames,figsize=(20,20))
+  plt.savefig(f'logistic-{k}-posterior.pdf',)
+  s = az.summary(trace, var_names = varNames)
+  print(s)
+  print(trace['posterior'])
+  #
+  print('posterior predictive')
+  with model:
+    mc.set_data({'XS': xs, 'LS': ls})
+    test = mc.sample_posterior_predictive(trace)
+    print(test)
 
 #
 
@@ -293,10 +350,12 @@ def main ():
   pd, pdmean, pdstddev = normalize(pdd)
   # TODO split off train / test
   print(len(pd))
+  pd = pd.sample(frac=1)
   #modelDirichletNucs(pd)
-  splitPoint = int(0.8*len(pd))
-  mdl = modelMixtureNucs(pd[:splitPoint])
-  testModel (pd[splitPoint:], mdl)
+  #modelMixtureNucs(pd[:splitPoint],k=1)
+  #modelMixtureNucs(pd[:splitPoint],k=2)
+  modelLogistic(pd, k=1)
+  #testModel (pd[splitPoint:], mdl)
 
 if __name__ == "__main__":
   main()
