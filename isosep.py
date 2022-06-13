@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pandas
 import pymc as mc
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
+from sklearn.model_selection import train_test_split
 import pickle
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
@@ -135,9 +136,11 @@ def relNucComp(pd):
   _, axes = plt.subplots(2,4, figsize=(40,10))
   for c,lbl in enumerate(ks1):
     ax = axes[0,c]
-    az.plot_posterior({lbl + ' base': xs1bs[:,c]},ax=ax, rope=(0,1))
+    ax.set_xlim(0.1,0.4)
+    az.plot_posterior({lbl + ' base': xs1bs[:,c]},ax=ax)
     ax = axes[1,c]
-    az.plot_posterior({lbl + ' deut': xs1dt[:,c]},ax=ax, rope=(0,1))
+    ax.set_xlim(0.1,0.4)
+    az.plot_posterior({lbl + ' deut': xs1dt[:,c]},ax=ax)
   plt.savefig('nucleotide-distributions.pdf')
   return
 
@@ -204,7 +207,7 @@ def modelDirichletNucs (pd):
 
 def normalize(pdd):
   pd = pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
-  mean = pd[pd['labels']==0]['means'].mean()
+  mean = pd['means'].mean() # pd[pd['labels']==0]['means'].mean()
   stddev = pd['means'].std()
   pd['means'] = (pd['means'] - mean) / stddev
   print(len(pd))
@@ -224,8 +227,19 @@ def memoize(fname, model):
   return trace
 
 def pdSplit(pd):
-  splitPoint = int(0.8*(len(pd)))
-  return pd[:splitPoint], pd[splitPoint:]
+  #splitPoint = int(0.8*(len(pd)))
+  s = 0.2
+  lbl0 = pd[pd['labels']==0]
+  lbl1 = pd[pd['labels']==1]
+  train0, test0 = train_test_split(lbl0, test_size=s)
+  train1, test1 = train_test_split(lbl1, test_size=s)
+  return pandas.concat([train0,train1]), pandas.concat([test0,test1])
+#  n = min(len(lbl0),len(lbl1))
+#  pd0 = lbl0.sample(n=n)
+#  pd1 = lbl1.sample(n=n)
+#  pd = pandas.concat([pd0,pd1])
+#  print(len(pd), len(lbl0), len(lbl1), len(test))
+#  return pd[:splitPoint], pd[splitPoint:]
 
 # NOTE a variant with 3-mers is possible but leads to divergence of the sampler somewhat often
 
@@ -249,9 +263,10 @@ def modelMixtureNucs(pdAll, k):
   rows, cols = xs.shape
   with Model() as model:
     beta = Normal('β', mu = np.zeros(cols), sigma = 1, shape=(cols))
-    deut = Normal('δ', mu = np.zeros(cols), sigma = 1, shape=(cols))
+    #deut = Normal('δ', mu = np.zeros(cols), sigma = 1, shape=(cols))
+    deut = Normal('δ', mu = 0, sigma = 1, shape=(1))
     ll  = at.dot(xs, beta)
-    ll += at.dot(xs, deut) * ls
+    ll += deut * ls
     error = HalfCauchy('ε', beta = 1)
     likelihood = Normal('ys', mu = ll, sigma = error, observed = ys,shape=(rows))
     trace = memoize('mixture.model', model)
@@ -285,13 +300,22 @@ def modelLogistic(pdAll, k):
   _, cols1 = xs1.shape
   _, cols2 = xs2.shape
   _, cols3 = xs3.shape
+  Tys = np.array(test['means'])
+  Tls = np.array(test['labels'])
+  Txs1 = np.asmatrix(np.vstack(test['n1rel'].values))
+  Txs2 = np.asmatrix(np.vstack(test['n2rel'].values))
+  Txs3 = np.asmatrix(np.vstack(test['n3rel'].values))
   xs = None
+  Txs = None
   if k==1:
     xs = xs1
+    Txs = Txs1
   if k==2:
     xs = xs2
+    Txs = Txs2
   if k==3:
     xs = xs3
+    Txs = Txs3
   rows, cols = xs.shape
   with Model() as model:
     XS = mc.MutableData('XS', xs)
@@ -305,6 +329,8 @@ def modelLogistic(pdAll, k):
     trace = memoize('logistic.model', model)
   print('sampling finished')
   varNames = ['μ', 'β']
+  #az.plot_trace(trace,figsize=(20,20))
+  #plt.savefig(f'logistic-{k}-trace.pdf')
   az.plot_posterior(trace, var_names = varNames,figsize=(20,20))
   plt.savefig(f'logistic-{k}-posterior.pdf',)
   s = az.summary(trace, var_names = varNames)
@@ -313,9 +339,24 @@ def modelLogistic(pdAll, k):
   #
   print('posterior predictive')
   with model:
-    mc.set_data({'XS': xs, 'LS': ls})
-    test = mc.sample_posterior_predictive(trace)
-    print(test)
+    zeros=test[test['labels']==0]
+    print(len(zeros))
+    mc.set_data({'XS': Txs})
+    print(Txs.shape, Tls.shape)
+    # every 30th only
+    test = mc.sample_posterior_predictive(trace.sel(draw=slice(None,None,30)), var_names=['p'])
+    ppc = test['posterior_predictive']
+    # mean prediction over all posterior predictive samples (from all chains)
+    predls = test['posterior_predictive']['p'].mean(axis=0).mean(axis=0)
+    predls0 = predls[:len(zeros)]
+    predls1 = predls[len(zeros):]
+    # tiny effect, but the effect is there, even in the test set!
+    print(predls0.mean(),predls1.mean())
+    plt.figure(figsize=(20,4))
+    plt.plot(Tls)
+    #plt.plot(ppc['p'].mean(axis=0).mean(axis=0))
+    plt.plot(np.concatenate([np.sort(predls0),np.sort(predls1)]))
+    plt.savefig(f'logistic-{k}-postpred.pdf')
 
 #
 
@@ -352,8 +393,8 @@ def main ():
   print(len(pd))
   pd = pd.sample(frac=1)
   #modelDirichletNucs(pd)
-  #modelMixtureNucs(pd[:splitPoint],k=1)
-  #modelMixtureNucs(pd[:splitPoint],k=2)
+  modelMixtureNucs(pd, k=1)
+  modelMixtureNucs(pd, k=2)
   modelLogistic(pd, k=1)
   #testModel (pd[splitPoint:], mdl)
 
