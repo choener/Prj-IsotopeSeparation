@@ -137,10 +137,10 @@ def relNucComp(pd):
   for c,lbl in enumerate(ks1):
     ax = axes[0,c]
     ax.set_xlim(0.1,0.4)
-    az.plot_posterior({lbl + ' base': xs1bs[:,c]},ax=ax)
+    az.plot_posterior({lbl + ' (H2O)': xs1bs[:,c]},ax=ax)
     ax = axes[1,c]
     ax.set_xlim(0.1,0.4)
-    az.plot_posterior({lbl + ' deut': xs1dt[:,c]},ax=ax)
+    az.plot_posterior({lbl + ' (D2O)': xs1dt[:,c]},ax=ax)
   plt.savefig('nucleotide-distributions.pdf')
   return
 
@@ -269,7 +269,7 @@ def modelMixtureNucs(pdAll, k):
     ll += deut * ls
     error = HalfCauchy('ε', beta = 1)
     likelihood = Normal('ys', mu = ll, sigma = error, observed = ys,shape=(rows))
-    trace = memoize('mixture.model', model)
+    trace = memoize(f'mixture-{k}.model', model)
   print('sampling finished')
   #
   varNames = ['ε', 'β', 'δ']
@@ -326,7 +326,7 @@ def modelLogistic(pdAll, k):
     ll = mu + at.dot(XS, beta)
     p = mc.Deterministic('p', mc.invlogit(ll))
     likelihood = mc.Bernoulli('ys', p=p, observed = LS)
-    trace = memoize('logistic.model', model)
+    trace = memoize(f'logistic-{k}.model', model)
   print('sampling finished')
   varNames = ['μ', 'β']
   #az.plot_trace(trace,figsize=(20,20))
