@@ -269,7 +269,7 @@ def modelMixtureNucs(pdAll, k):
     beta = Normal('β', mu = np.zeros(cols), sigma = 1, shape=(cols))
     #deut = Normal('δ', mu = np.zeros(cols), sigma = 1, shape=(cols))
     deut = Normal('δ', mu = 0, sigma = 1) # , shape=(1)) # make this scalar (again)
-    ll  = at.dot(xs, beta)
+    ll  = at.dot(4*xs-1, beta)
     ll += deut * ls
     error = HalfCauchy('ε', beta = 1)
     likelihood = Normal('ys', mu = ll, sigma = error, observed = ys,shape=(rows))
