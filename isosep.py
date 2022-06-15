@@ -10,12 +10,16 @@ import aesara.tensor as at
 import arviz as az
 import h5py
 import matplotlib.pyplot as plt
+import matplotlib as pl
 import numpy as np
 import pandas as pandas
 import pymc as mc
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
 import pickle
+
+font = { 'weight': 'bold', 'size': 30 }
+pl.rc('font', **font)
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
@@ -137,11 +141,11 @@ def relNucComp(pd):
   for c,lbl in enumerate(ks1):
     ax = axes[0,c]
     ax.set_xlim(0.1,0.4)
-    az.plot_posterior({lbl + ' (H2O)': xs1bs[:,c]},ax=ax)
+    az.plot_posterior({lbl + ' (H2O)': xs1bs[:,c]},ax=ax, textsize=26)
     ax = axes[1,c]
     ax.set_xlim(0.1,0.4)
-    az.plot_posterior({lbl + ' (D2O)': xs1dt[:,c]},ax=ax)
-  plt.savefig('nucleotide-distributions.pdf')
+    az.plot_posterior({lbl + ' (D2O)': xs1dt[:,c]},ax=ax, textsize=26)
+  plt.savefig('nucleotide-distributions.pdf', bbox_inches='tight')
   return
 
 # Histogram of the relative nucleotide compositions, divided by label. We want to make sure that we
@@ -193,9 +197,9 @@ def modelDirichletNucs (pd):
     #scatter_matrix(traceDF, figsize=(8,8))
     #traceplot(trace)
     az.plot_posterior(trace)
-    plt.savefig('posterior.pdf')
+    plt.savefig('posterior.pdf', bbox_inches='tight')
     az.plot_trace(trace)
-    plt.savefig('trace.pdf')
+    plt.savefig('trace.pdf', bbox_inches='tight')
     # TODO extract the full trace so that I can run a prob that deutscale != 0
     # TODO extract statistics on nucleotide distribution, compare between classes to make sure we
     # don't accidentally train just on that
@@ -264,7 +268,7 @@ def modelMixtureNucs(pdAll, k):
   with Model() as model:
     beta = Normal('β', mu = np.zeros(cols), sigma = 1, shape=(cols))
     #deut = Normal('δ', mu = np.zeros(cols), sigma = 1, shape=(cols))
-    deut = Normal('δ', mu = 0, sigma = 1, shape=(1))
+    deut = Normal('δ', mu = 0, sigma = 1) # , shape=(1)) # make this scalar (again)
     ll  = at.dot(xs, beta)
     ll += deut * ls
     error = HalfCauchy('ε', beta = 1)
@@ -274,9 +278,9 @@ def modelMixtureNucs(pdAll, k):
   #
   varNames = ['ε', 'β', 'δ']
   az.plot_trace(trace,figsize=(20,20))
-  plt.savefig(f'mixture-{k}-trace.pdf')
-  az.plot_posterior(trace, var_names = varNames,figsize=(20,20))
-  plt.savefig(f'mixture-{k}-posterior.pdf',)
+  plt.savefig(f'mixture-{k}-trace.pdf', bbox_inches='tight')
+  az.plot_posterior(trace, var_names = varNames,figsize=(30,20), textsize=26)
+  plt.savefig(f'mixture-{k}-posterior.pdf', bbox_inches='tight')
   #
   s = az.summary(trace, var_names = varNames)
   print(s)
@@ -318,21 +322,22 @@ def modelLogistic(pdAll, k):
     Txs = Txs3
   rows, cols = xs.shape
   with Model() as model:
+    YS = mc.MutableData('YS', ys)
     XS = mc.MutableData('XS', xs)
     LS = mc.MutableData('LS', ls)
     # should be at zero, since we normalized
     mu = Normal('μ',0, sigma=1)
     beta = Normal('β', mu = np.zeros(cols), sigma=10, shape=(cols))
-    ll = mu + at.dot(XS, beta)
+    ll = YS + mu + at.dot(XS, beta)
     p = mc.Deterministic('p', mc.invlogit(ll))
-    likelihood = mc.Bernoulli('ys', p=p, observed = LS)
+    likelihood = mc.Bernoulli('obs', p=p, observed = LS)
     trace = memoize(f'logistic-{k}.model', model)
   print('sampling finished')
   varNames = ['μ', 'β']
   #az.plot_trace(trace,figsize=(20,20))
   #plt.savefig(f'logistic-{k}-trace.pdf')
   az.plot_posterior(trace, var_names = varNames,figsize=(20,20))
-  plt.savefig(f'logistic-{k}-posterior.pdf',)
+  plt.savefig(f'logistic-{k}-posterior.pdf', bbox_inches='tight')
   s = az.summary(trace, var_names = varNames)
   print(s)
   print(trace['posterior'])
@@ -341,7 +346,7 @@ def modelLogistic(pdAll, k):
   with model:
     zeros=test[test['labels']==0]
     print(len(zeros))
-    mc.set_data({'XS': Txs})
+    mc.set_data({'XS': Txs, 'YS': Tys})
     print(Txs.shape, Tls.shape)
     # every 30th only
     test = mc.sample_posterior_predictive(trace.sel(draw=slice(None,None,30)), var_names=['p'])
@@ -356,7 +361,7 @@ def modelLogistic(pdAll, k):
     plt.plot(Tls)
     #plt.plot(ppc['p'].mean(axis=0).mean(axis=0))
     plt.plot(np.concatenate([np.sort(predls0),np.sort(predls1)]))
-    plt.savefig(f'logistic-{k}-postpred.pdf')
+    plt.savefig(f'logistic-{k}-postpred.pdf', bbox_inches='tight')
 
 #
 
@@ -396,6 +401,7 @@ def main ():
   modelMixtureNucs(pd, k=1)
   modelMixtureNucs(pd, k=2)
   modelLogistic(pd, k=1)
+  modelLogistic(pd, k=2)
   #testModel (pd[splitPoint:], mdl)
 
 if __name__ == "__main__":
