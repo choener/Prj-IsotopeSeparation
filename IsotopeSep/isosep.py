@@ -5,21 +5,63 @@ from itertools import chain
 from os.path import exists
 from pathlib import Path
 from pymc import Model, Normal, HalfCauchy, sample, Dirichlet, HalfNormal
-import aesara as ae
-import aesara.tensor as at
-import arviz as az
-import h5py
-import matplotlib.pyplot as plt
-import matplotlib as pl
-import numpy as np
-import pandas as pandas
-import pymc as mc
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
 from sklearn.model_selection import train_test_split
+import aesara as ae
+import aesara.tensor as at
+import argparse
+import arviz as az
+import h5py
+import matplotlib as pl
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pandas
 import pickle
+import pymc as mc
 
 font = { 'weight': 'bold', 'size': 30 }
 pl.rc('font', **font)
+
+# Infrastructure construct, which tells us the comparison / classification items.
+# NOTE Currently this is a bi-classification, later on we should consider a structured 3-label
+# system, since supposedly the observed strength should increase with more higher isotope
+# concentration.
+
+class Construct:
+  # Initialize (and pickle)
+  def __init__(self, barcodes, reads, pickleDir, limitReads = None):
+    self.labels = {}
+    self.pickleDir = ""
+    self.readSummaryStats = None
+    self.reads = reads
+    assert len(barcodes)==2
+    assert len(reads)>0
+    for b in barcodes:
+      pcnt,barcode = b
+      print (pcnt, barcode)
+      self.labels[pcnt] = getIdLabels(barcode)
+    if pickleDir is not None:
+      self.pickleDir = pickleDir
+      self.pickleOrRead(limitReads)
+  # Extract summary stats from pickle or read from actual reads
+  def pickleOrRead(self, limitReads = None):
+    fname = self.pickleDir + '/summaryStats.pandas'
+    if exists(fname):
+      self.readSummaryStats = pandas.read_pickle(fname)
+    else:
+      pds = []
+      cnt = 0
+      for path in self.reads:
+        print (f'READ PATH: {path}')
+        for rname in Path(path).rglob(f'*.fast5'):
+          cnt += 1
+          if limitReads is not None and int(limitReads) < cnt:
+            break
+          print(f'{cnt: >4} {rname}')
+          pd = fast5Handler(self.labels,rname)
+          pds.append(pd)
+      self.readSummaryStats = pandas.concat(pds)
+      self.readSummaryStats.to_pickle(fname)
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
@@ -86,8 +128,8 @@ def fast5Handler (labels,fname):
       ls.append(0)
     elif rid in labels['100']:
       ls.append(1)
-    elif rid in labels['30']:
-      ls.append(2)
+#    elif rid in labels['30']:
+#      ls.append(2)
     else:
       ls.append(-1)
   fast5.close()
@@ -363,31 +405,42 @@ def modelLogistic(pdAll, k):
     plt.plot(np.concatenate([np.sort(predls0),np.sort(predls1)]))
     plt.savefig(f'logistic-{k}-postpred.pdf', bbox_inches='tight')
 
+# 
 #
+# NOTE Reading 'reads' is costly only the first run, we pickles immediately, then re-use the pickles
 
 def main ():
   print(f'PyMC v{mc.__version__}')
-  labels={}
-  labels['0'] = getIdLabels('barcode14.ids')
-  labels['30'] = getIdLabels('barcode15.ids')
-  labels['100'] = getIdLabels('barcode16.ids')
-  dir = '/shared/choener/Workdata/heavy_atoms_deuterium_taubert/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--barcode', action='append', nargs='+', help='give as PERCENT,FILE')
+  parser.add_argument('--reads', action='append', help='directories where reads are located')
+  parser.add_argument('--pickle', help='where to write pickle data to')
+  parser.add_argument('--limitreads', help='Limit the number of reads to read when no pickle exists')
+  args = parser.parse_args()
+  print(args)
+  # fill infrastructure for data
+  construct = Construct(barcodes = args.barcode, reads = args.reads, pickleDir = args.pickle, limitReads = args.limitreads)
+  #labels={}
+  #labels['0'] = getIdLabels('barcode14.ids')
+  #labels['30'] = getIdLabels('barcode15.ids')
+  #labels['100'] = getIdLabels('barcode16.ids')
+  #dir = '/shared/choener/Workdata/heavy_atoms_deuterium_taubert/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
   #dir = '.'
   #dir = '/data/fass5/reads/heavy_atoms_deuterium_taubert/basecalled_fast5s/20220303_FAR96927_BC14-15-16_0-30-100_Deutrium_sequencing'
-  pdAll = None
-  if exists('./pdAll.pandas'):
-    pdAll = pandas.read_pickle('./pdAll.pandas')
-  else:
-    pds = []
-    cnt = 0
-    for path in Path(dir).rglob(f'*.fast5'):
-      pd = fast5Handler(labels,path)
-      pds.append(pd)
-      cnt += 1
-      #if cnt >= 10: break
-    allpds = pandas.concat(pds)
-    allpds.to_pickle('./pdAll.pandas')
-    pdAll = allpds
+  #pdAll = None
+  #if exists('./pdAll.pandas'):
+  #  pdAll = pandas.read_pickle('./pdAll.pandas')
+  #else:
+  #  pds = []
+  #  cnt = 0
+  #  for path in Path(dir).rglob(f'*.fast5'):
+  #    pd = fast5Handler(labels,path)
+  #    pds.append(pd)
+  #    cnt += 1
+  #    #if cnt >= 10: break
+  #  allpds = pandas.concat(pds)
+  #  allpds.to_pickle('./pdAll.pandas')
+  #  pdAll = allpds
   relNucComp(pdAll)
   nucleotideHistogram(pdAll)
   # only work with data that has known labels
