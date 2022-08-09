@@ -14,11 +14,11 @@
       },
       "locked": {
         "narHash": "sha256-MmWidxFPx37EUwcUOi9w3zon+mkHFkGBBszI1hGLCxY=",
-        "path": "/nix/store/ilmdlk5sfm6jqgvbam7hgg0bscr82fqs-source/IsotopeSep",
+        "path": "/nix/store/z03lvin41hy886qpmw835wbjqlvz2689-source/IsotopeSep",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/ilmdlk5sfm6jqgvbam7hgg0bscr82fqs-source/IsotopeSep",
+        "path": "/nix/store/z03lvin41hy886qpmw835wbjqlvz2689-source/IsotopeSep",
         "type": "path"
       }
     },
