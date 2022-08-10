@@ -18,6 +18,7 @@ import numpy as np
 import pandas as pandas
 import pickle
 import pymc as mc
+import sys
 
 font = { 'weight': 'bold', 'size': 30 }
 pl.rc('font', **font)
@@ -40,9 +41,19 @@ class Construct:
       pcnt,barcode = b
       print (pcnt, barcode)
       self.labels[pcnt] = getIdLabels(barcode)
+    # Check that labels are unique
+    print('label check')
+    for l in self.labels.keys():
+      for k in self.labels.keys():
+        if l>=k: continue # check upper triangular matrix
+        s = self.labels[l].intersection(self.labels[k])
+        if len(s) > 0:
+          sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
     if pickleDir is not None:
       self.pickleDir = pickleDir
       self.pickleOrRead(limitReads)
+    relNucComp(self.readSummaryStats)
+    nucleotideHistogram(self.readSummaryStats)
   # Extract summary stats from pickle or read from actual reads
   def pickleOrRead(self, limitReads = None):
     fname = self.pickleDir + '/summaryStats.pandas'
@@ -92,11 +103,15 @@ def maximalRunOf(fast5):
       rs.append(int(k.split('_')[1]))
   return max(rs)
 
+# The fast5Handler iterates over each fast 5 file, extracts the raw signal and transforms the signal
+# to pA (pico Ampere).
 #
+# This is followed by transformation operations, which currently amount to a mean() operation over
+# the pA of each read.
+
 # TODO Make this generic over the k-mers
 
 def fast5Handler (labels,fname):
-  print(fname)
   fast5 = h5py.File(fname, 'r')
   ns = []
   ms = []
@@ -104,7 +119,8 @@ def fast5Handler (labels,fname):
   i=0
   for r in fast5.keys():
     i+=1
-    if i>=100: break
+    # FIXME why break here?
+    #if i>=100: break
     s = maximalRunOf(fast5[r])
     rid = r.split('read_')[1]
     rawSignal = fast5[r]['Raw/Signal'][:]
@@ -120,18 +136,13 @@ def fast5Handler (labels,fname):
     nstats = NucleotideStats(fastq)
     ns.append(nstats)
     ms.append(np.mean(pA))
-    for l in labels:
-      if rid in l:
-        ls.append(l)
+    k = ''
+    for l in labels.keys():
+      if rid in labels[l]:
+        k = l
         break
-    if rid in labels['0']:
-      ls.append(0)
-    elif rid in labels['100']:
-      ls.append(1)
-#    elif rid in labels['30']:
-#      ls.append(2)
-    else:
-      ls.append(-1)
+    ls.append(k)
+    print(k)
   fast5.close()
   print(len(ns))
   # TODO construct data frame, where we can then later cut things away
@@ -412,7 +423,7 @@ def modelLogistic(pdAll, k):
 def main ():
   print(f'PyMC v{mc.__version__}')
   parser = argparse.ArgumentParser()
-  parser.add_argument('--barcode', action='append', nargs='+', help='give as PERCENT,FILE')
+  parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')
   parser.add_argument('--reads', action='append', help='directories where reads are located')
   parser.add_argument('--pickle', help='where to write pickle data to')
   parser.add_argument('--limitreads', help='Limit the number of reads to read when no pickle exists')
@@ -441,21 +452,21 @@ def main ():
   #  allpds = pandas.concat(pds)
   #  allpds.to_pickle('./pdAll.pandas')
   #  pdAll = allpds
-  relNucComp(pdAll)
-  nucleotideHistogram(pdAll)
-  # only work with data that has known labels
-  pdd = pdAll[pdAll['labels'] != -1]
-  pd = pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
-  pd, pdmean, pdstddev = normalize(pdd)
-  # TODO split off train / test
-  print(len(pd))
-  pd = pd.sample(frac=1)
-  #modelDirichletNucs(pd)
-  modelMixtureNucs(pd, k=1)
-  modelMixtureNucs(pd, k=2)
-  modelLogistic(pd, k=1)
-  modelLogistic(pd, k=2)
-  #testModel (pd[splitPoint:], mdl)
+  #relNucComp(pdAll)
+  #nucleotideHistogram(pdAll)
+  ## only work with data that has known labels
+  #pdd = pdAll[pdAll['labels'] != -1]
+  #pd = pandas.concat([pdd[pdd['labels']==0], pdd[pdd['labels']==1]])
+  #pd, pdmean, pdstddev = normalize(pdd)
+  ## TODO split off train / test
+  #print(len(pd))
+  #pd = pd.sample(frac=1)
+  ##modelDirichletNucs(pd)
+  #modelMixtureNucs(pd, k=1)
+  #modelMixtureNucs(pd, k=2)
+  #modelLogistic(pd, k=1)
+  #modelLogistic(pd, k=2)
+  ##testModel (pd[splitPoint:], mdl)
 
 if __name__ == "__main__":
   main()
