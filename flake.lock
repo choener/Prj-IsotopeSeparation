@@ -13,12 +13,12 @@
         ]
       },
       "locked": {
-        "narHash": "sha256-MmWidxFPx37EUwcUOi9w3zon+mkHFkGBBszI1hGLCxY=",
-        "path": "/nix/store/z03lvin41hy886qpmw835wbjqlvz2689-source/IsotopeSep",
+        "narHash": "sha256-Jj+VXcjtGW54++VUhFp7WzZQz1aDxdoN0O9vHr5upCY=",
+        "path": "/nix/store/58srq3w06rz0avc55q8xaz3fw24ssvca-source/IsotopeSep",
         "type": "path"
       },
       "original": {
-        "path": "/nix/store/z03lvin41hy886qpmw835wbjqlvz2689-source/IsotopeSep",
+        "path": "/nix/store/58srq3w06rz0avc55q8xaz3fw24ssvca-source/IsotopeSep",
         "type": "path"
       }
     },
