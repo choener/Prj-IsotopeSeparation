@@ -1,27 +1,5 @@
 {
   "nodes": {
-    "IsotopeSep": {
-      "inputs": {
-        "flake-utils": [
-          "flake-utils"
-        ],
-        "jupyterWith": [
-          "jupyterWith"
-        ],
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },
-      "locked": {
-        "narHash": "sha256-Jj+VXcjtGW54++VUhFp7WzZQz1aDxdoN0O9vHr5upCY=",
-        "path": "/nix/store/58srq3w06rz0avc55q8xaz3fw24ssvca-source/IsotopeSep",
-        "type": "path"
-      },
-      "original": {
-        "path": "/nix/store/58srq3w06rz0avc55q8xaz3fw24ssvca-source/IsotopeSep",
-        "type": "path"
-      }
-    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -306,7 +284,6 @@
     },
     "root": {
       "inputs": {
-        "IsotopeSep": "IsotopeSep",
         "flake-utils": "flake-utils",
         "jupyterWith": "jupyterWith",
         "nixpkgs": "nixpkgs_4"

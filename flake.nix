@@ -7,10 +7,10 @@
     nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
     jupyterWith.url = "github:tweag/jupyterWith";
-    IsotopeSep = { url = "./IsotopeSep"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; jupyterWith.follows = "jupyterWith"; }; };
+    #IsotopeSep = { url = "./IsotopeSep"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; jupyterWith.follows = "jupyterWith"; }; };
   };
 
-  outputs = { self, nixpkgs, flake-utils, jupyterWith, IsotopeSep }: let
+  outputs = { self, nixpkgs, flake-utils, jupyterWith }: let
 
     # each system
     eachSystem = system: let
@@ -33,10 +33,18 @@
       ]);
 
     in rec {
-      # TODO run the data link scripts automatically?
-      devShell = IsotopeSep.devShell.${system};
+      devShell = pkgs.mkShell {
+        buildInputs = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs ];
+        HDF5_PLUGIN_PATH="${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib";
+        PYTHONPATH="./IsotopeSep";
+      };
+      packages."vbz" = pkgs.ont_vbz_compression;
     }; # eachSystem
 
+    overlay = final: prev: {
+      ont_vbz_compression = final.callPackage ./IsotopeSep/pkgs/vbz {};
+    };
+
   in
-    flake-utils.lib.eachDefaultSystem eachSystem;
+    flake-utils.lib.eachDefaultSystem eachSystem // { inherit overlay; };
 }
