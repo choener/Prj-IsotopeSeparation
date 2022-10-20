@@ -2,10 +2,10 @@
 # The summary statistics construct. Loops over Fast5 files, extracts the information we can use and
 # constructs a pickle, for fasta re-runs (since we have literally 100's of GByte of data).
 
-import sys
 from os.path import exists
-import pandas
 from pathlib import Path
+import pandas
+import sys
 
 import Fast5
 
@@ -13,6 +13,10 @@ import Fast5
 # NOTE Currently this is a bi-classification, later on we should consider a structured 3-label
 # system, since supposedly the observed strength should increase with more higher isotope
 # concentration.
+#
+# The construct will either read the reads or extract construct information from a pickle. After
+# each read has been processed, summary statistics are immediately generated, otherwise we risk
+# memory overflows, since intermediate data is huge.
 
 class Construct:
   # Initialize (and pickle)
@@ -40,6 +44,7 @@ class Construct:
       self.pickleOrRead(limitReads, plotSquiggle)
     relNucComp(self.readSummaryStats)
     nucleotideHistogram(self.readSummaryStats)
+
   # Extract summary stats from pickle or read from actual reads
   def pickleOrRead(self, limitReads = None, plotSquiggle = None):
     fname = self.pickleDir + '/summaryStats.pandas'
@@ -55,7 +60,8 @@ class Construct:
           if limitReads is not None and int(limitReads) < cnt:
             break
           print(f'{cnt: >4} {rname}')
-          pd = Fast5.fast5Handler(self.labels,rname, plotSquiggle)
+          pdAll = Fast5.fast5Handler(rname)
+          pd = bang # TODO scalae data down!
           pds.append(pd)
       self.readSummaryStats = pandas.concat(pds)
       self.readSummaryStats.to_pickle(fname)
