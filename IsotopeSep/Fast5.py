@@ -7,6 +7,7 @@ import h5py
 import numpy as np
 import pandas as pandas
 import statistics
+import logging as l
 
 
 
@@ -102,15 +103,20 @@ def fast5Handler (fname):
   mainSignals = []
   nucStrings = []
   readIDs = []
+  numKeys = len(fast5.keys())
+  i=0
   for r in fast5.keys():
-    print(r)
+    i+=1
     raw = undigitise(fast5,r, rawSignal(fast5,r))
     (preRaw,sufRaw) = splitRawSignal(fast5,r,raw)
     segmented = segmentSignal(sufRaw,moveTable(fast5,r))
     preSignals.append(preRaw)
     mainSignals.append(segmented)
-    nucStrings.append(nucleotides(fast5,r))
-    readIDs.append(r.split('read_')[1])
+    nucs = nucleotides(fast5,r)
+    nucStrings.append(nucs)
+    rid = r.split('read_')[1]
+    readIDs.append(rid)
+    l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):6d} sufRaw: {len(sufRaw):6d} nucs: {len(nucs):6d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
   fast5.close()
   return pandas.DataFrame(
     { 'preSignals': preSignals

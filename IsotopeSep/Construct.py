@@ -4,8 +4,10 @@
 
 from os.path import exists
 from pathlib import Path
+import logging as log
 import pandas
 import sys
+import numpy as np
 
 import Fast5
 
@@ -23,49 +25,67 @@ class Construct:
   def __init__(self, barcodes, reads, pickleDir, limitReads = None, plotSquiggle = None):
     self.labels = {}
     self.pickleDir = ""
-    self.readSummaryStats = None
     self.reads = reads
+    self.summaryStats = None        # data frame containing all summary statistics
     assert len(barcodes)==2
     assert len(reads)>0
-    for b in barcodes:
-      pcnt,barcode = b
-      print (pcnt, barcode)
+    for pcnt,barcode in barcodes:
+      log.info(f'{int(pcnt):3d}%  ->  barcode file: {barcode:s}')
       self.labels[pcnt] = getIdLabels(barcode)
-    # Check that labels are unique
-    print('label check')
+    # Check that labels are unique, performs intersection test on all pairs of labels
+    log.info('label check')
     for l in self.labels.keys():
       for k in self.labels.keys():
         if l>=k: continue # check upper triangular matrix
         s = self.labels[l].intersection(self.labels[k])
         if len(s) > 0:
           sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
+    # either load load from pickle dir (and save if first time running the data), or just go through
+    # all data
     if pickleDir is not None:
       self.pickleDir = pickleDir
       self.pickleOrRead(limitReads, plotSquiggle)
-    relNucComp(self.readSummaryStats)
-    nucleotideHistogram(self.readSummaryStats)
+    relNucComp(self.summaryStats)
+    nucleotideHistogram(self.summaryStats)
 
   # Extract summary stats from pickle or read from actual reads
   def pickleOrRead(self, limitReads = None, plotSquiggle = None):
     fname = self.pickleDir + '/summaryStats.pandas'
     if exists(fname):
-      self.readSummaryStats = pandas.read_pickle(fname)
+      self.summaryStats = pandas.read_pickle(fname)
     else:
       pds = []
       cnt = 0
       for path in self.reads:
-        print (f'READ PATH: {path}')
+        log.info(f'READ PATH: {path}')
         for rname in Path(path).rglob(f'*.fast5'):
           cnt += 1
           if limitReads is not None and int(limitReads) < cnt:
             break
-          print(f'{cnt: >4} {rname}')
-          pdAll = Fast5.fast5Handler(rname)
-          pd = bang # TODO scalae data down!
-          pds.append(pd)
-      self.readSummaryStats = pandas.concat(pds)
-      self.readSummaryStats.to_pickle(fname)
+          # contains data for approx. 4000 reads or so
+          fdata = Fast5.fast5Handler(rname)
+          # calculate summary statistics to get 4000 rows of information, with huge number of
+          # columns
+          summarised = genSummaryStats(undefined, fdata)
+          pds.append(summarised)
+      self.summaryStats = pandas.concat(pds)
+      self.summaryStats.to_pickle(fname)
 
+# Take the full information for reads and generates summary statistics
+# label information provides a lookup ReadID -> label in [0,1], however the label might well be
+# "0"/"100" and will only be "classified" in the actual model.
+# xs contains { preSignals, mainSignals, nucStrings, readIDs }
+
+def genSummaryStats(labelInformation, xs):
+  return pandas.DataFrame ({
+    'label': [],
+    # prefix information
+    'preMedian': [np.median(x) for x in xs['preSignals']],
+    # suffix information
+    'sufMedian': [np.median(x) for x in xs['mainSignals']],
+    'sufMean': [np.mean(x) for x in xs['mainSignals']],
+    'sufVar': [np.var(x) for x in xs['mainSignals']],
+  })
 
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium

@@ -13,6 +13,7 @@ import numpy as np
 import pandas as pandas
 import pickle
 import pymc as mc
+import logging
 
 import Construct
 
@@ -138,7 +139,9 @@ def modelMixtureNucs(pdAll, k):
 # NOTE Reading 'reads' is costly only the first run, we pickles immediately, then re-use the pickles
 
 def main ():
-  print(f'PyMC v{mc.__version__}')
+  FORMAT = '%(asctime)s %(message)s'
+  logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+  logging.info(f'PyMC v{mc.__version__}')
   parser = argparse.ArgumentParser()
   parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')
   parser.add_argument('--reads', action='append', help='directories where reads are located')
@@ -146,7 +149,6 @@ def main ():
   parser.add_argument('--limitreads', help='Limit the number of reads to read when no pickle exists')
   parser.add_argument('--plotsquiggle', help='Plot the time series squiggle plot for every (!) read')
   args = parser.parse_args()
-  print(args)
   # fill infrastructure for data
   construct = Construct.Construct(barcodes = args.barcode, reads = args.reads, pickleDir = args.pickle, limitReads = args.limitreads, plotSquiggle = args.plotsquiggle)
   #labels={}
