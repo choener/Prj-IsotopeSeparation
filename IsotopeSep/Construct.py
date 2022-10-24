@@ -5,11 +5,12 @@
 from os.path import exists
 from pathlib import Path
 import logging as log
+import numpy as np
 import pandas
 import sys
-import numpy as np
 
 import Fast5
+import Stats
 
 # Infrastructure construct, which tells us the comparison / classification items.
 # NOTE Currently this is a bi-classification, later on we should consider a structured 3-label
@@ -45,8 +46,8 @@ class Construct:
     if pickleDir is not None:
       self.pickleDir = pickleDir
       self.pickleOrRead(limitReads, plotSquiggle)
-    relNucComp(self.summaryStats)
-    nucleotideHistogram(self.summaryStats)
+    #relNucComp(self.summaryStats)
+    #nucleotideHistogram(self.summaryStats)
 
   # Extract summary stats from pickle or read from actual reads
   def pickleOrRead(self, limitReads = None, plotSquiggle = None):
@@ -69,8 +70,33 @@ class Construct:
           # columns
           #summarised = genSummaryStats(self.labels, fdata)
           #pds.append(summarised)
-      self.summaryStats = pandas.concat(pds)
-      self.summaryStats.to_pickle(fname)
+      #self.summaryStats = pandas.concat(pds)
+      #self.summaryStats.to_pickle(fname)
+
+
+
+# 
+
+class SummaryStats (Fast5.Fast5Accumulator):
+  def __init__ (self):
+    self.readIDs = []
+    self.preMedian = []
+    self.sufMedian = []
+    self.sufMad = []
+    self.numNucleotides = []
+    pass
+  def insRead (self, preRaw, segmented, nucs, rid):
+    self.readIDs.append(rid)
+    self.preMedian.append(np.median(preRaw))
+    suf = np.concatenate(segmented)
+    self.sufMedian.append(np.median(suf))
+    self.sufMad.append(Stats.medianAbsoluteDeviation(suf))
+    self.numNucleotides.append(len(nucs))
+    pass
+  # will convert the internal structures to arrays, where beneficial
+  #def convertToArrays(self):
+  #  self.sufMad = np.array(self.sufMad)
+  #  pass
 
 # Take the full information for reads and generates summary statistics
 # label information provides a lookup ReadID -> label in [0,1], however the label might well be

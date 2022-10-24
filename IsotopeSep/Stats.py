@@ -30,3 +30,10 @@ class NucleotideStats:
 
 # TODO create classes that take the Fast5 inputs read-wise, this way we can give the fast5 function
 # the functionality to turn the "big" data into summary statistics.
+
+# Median absolute deviation
+
+def medianAbsoluteDeviation(xs):
+  median = np.median(xs)
+  return np.median(np.abs(xs-median))
+
