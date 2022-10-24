@@ -56,6 +56,7 @@ class Construct:
     else:
       pds = []
       cnt = 0
+      accum = Fast5.AccumDF()
       for path in self.reads:
         log.info(f'READ PATH: {path}')
         for rname in Path(path).rglob(f'*.fast5'):
@@ -63,11 +64,11 @@ class Construct:
           if limitReads is not None and int(limitReads) < cnt:
             break
           # contains data for approx. 4000 reads or so
-          fdata = Fast5.fast5Handler(rname)
+          accum = Fast5.fast5Handler(rname,accum)
           # calculate summary statistics to get 4000 rows of information, with huge number of
           # columns
-          summarised = genSummaryStats(undefined, fdata)
-          pds.append(summarised)
+          #summarised = genSummaryStats(self.labels, fdata)
+          #pds.append(summarised)
       self.summaryStats = pandas.concat(pds)
       self.summaryStats.to_pickle(fname)
 
@@ -75,6 +76,9 @@ class Construct:
 # label information provides a lookup ReadID -> label in [0,1], however the label might well be
 # "0"/"100" and will only be "classified" in the actual model.
 # xs contains { preSignals, mainSignals, nucStrings, readIDs }
+
+# TODO Needs a mapping 'label' -> 'string label', since label will end up being a 0/1 vector for
+# classification
 
 def genSummaryStats(labelInformation, xs):
   return pandas.DataFrame ({

@@ -1,8 +1,6 @@
 
 # Fast5 handling methods
 
-from collections import Counter
-from itertools import chain
 import h5py
 import numpy as np
 import pandas as pandas
@@ -97,12 +95,8 @@ def nucleotides(fast5, key):
 # to pA (pico Ampere). Returned are presignals, main signals (split again for each move point), the
 # nucleotide strings and the ID for each read.
 
-def fast5Handler (fname):
+def fast5Handler (fname, accumulator):
   fast5 = h5py.File(fname, 'r')
-  preSignals = []
-  mainSignals = []
-  nucStrings = []
-  readIDs = []
   numKeys = len(fast5.keys())
   i=0
   for r in fast5.keys():
@@ -110,42 +104,45 @@ def fast5Handler (fname):
     raw = undigitise(fast5,r, rawSignal(fast5,r))
     (preRaw,sufRaw) = splitRawSignal(fast5,r,raw)
     segmented = segmentSignal(sufRaw,moveTable(fast5,r))
-    preSignals.append(preRaw)
-    mainSignals.append(segmented)
     nucs = nucleotides(fast5,r)
-    nucStrings.append(nucs)
     rid = r.split('read_')[1]
-    readIDs.append(rid)
     l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):6d} sufRaw: {len(sufRaw):6d} nucs: {len(nucs):6d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
+    accumulator.insRead(preRaw, segmented, nucs, rid)
   fast5.close()
-  return pandas.DataFrame(
-    { 'preSignals': preSignals
-    , 'mainSignals': mainSignals
-    , 'nucStrings': nucStrings
-    , 'readIDs': readIDs
-    })
+  return accumulator
 
-# Store summary statistics for a time series (of a squiggle plot)
+class Fast5Accumulator:
+  def __init__ (self):
+    pass
+  def insRead (self, preRaw, segmented, nucs, rid):
+    pass
 
-class SeriesStats:
-  def __init__(self, xs):
-    self.mean = statistics.mean(xs)
-    self.var = statistics.variance(xs)
-    self.median = statistics.median(xs)
-    maddiff = xs-np.median(xs)
-    self.mad = np.median(abs(maddiff))
-    up = maddiff[maddiff>0]
-    down = maddiff[maddiff<0]
-    self.upmad = np.median(up)
-    self.downmad = np.median(down)
+# This wrapper will just accumulate data for a pandas dataframe and perform no summary statistics
+# calculation
 
-# Store summary statistics for the nucleotides
+class AccumDF (Fast5Accumulator):
+  def __init__ (self):
+    self.preSignals = []
+    self.mainSignals = []
+    self.nucStrings = []
+    self.readIDs = []
+    pass
 
-class NucleotideStats:
-  def __init__(self, seq):
-    s2 = [''.join(pair) for pair in zip(seq[:-1],seq[1:])]
-    s3 = [''.join(triplet) for triplet in zip(seq[:-2],seq[1:-1],seq[2:])]
-    self.k1 = Counter(chain.from_iterable(seq))
-    self.k2 = Counter(s2)
-    self.k3 = Counter(s3)
+  def insRead (self, preRaw, segmented, nucs, rid):
+    self.preSignals.append(preRaw)
+    self.mainSignals.append(segmented)
+    self.nucStrings.append(nucs)
+    self.readIDs.append(rid)
+
+  def getDF (self):
+    return pandas.DataFrame(
+      { 'preSignals': self.preSignals
+      , 'mainSignals': self.mainSignals
+      , 'nucStrings': self.nucStrings
+      , 'readIDs': self.readIDs
+      })
+
+class VoidDF (Fast5Accumulator):
+  def insRead (self, preRaw, segmented, nucs, rid):
+    pass
 
