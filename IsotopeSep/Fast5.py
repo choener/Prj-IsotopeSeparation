@@ -77,14 +77,6 @@ def moveTableToLengths (moveTable, stride=5):
       ls[-1] += stride
   return ls
 
-# Statistics for movetabled nucleotide positions in the raw signal
-
-def signalStatistics (splitsignal):
-  stats = []
-  for ns in splitsignal:
-    stats.append([np.mean(ns),statistics.variance(ns),np.median(ns)])
-  return np.transpose(np.array(stats))
-
 # Extract the base called sequence from a fast5 file at the given key
 
 def nucleotides(fast5, key):

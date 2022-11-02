@@ -103,20 +103,6 @@ class SummaryStats (Fast5.Fast5Accumulator):
 # "0"/"100" and will only be "classified" in the actual model.
 # xs contains { preSignals, mainSignals, nucStrings, readIDs }
 
-# TODO Needs a mapping 'label' -> 'string label', since label will end up being a 0/1 vector for
-# classification
-
-def genSummaryStats(labelInformation, xs):
-  return pandas.DataFrame ({
-    'label': [],
-    # prefix information
-    'preMedian': [np.median(x) for x in xs['preSignals']],
-    # suffix information
-    'sufMedian': [np.median(x) for x in xs['mainSignals']],
-    'sufMean': [np.mean(x) for x in xs['mainSignals']],
-    'sufVar': [np.var(x) for x in xs['mainSignals']],
-  })
-
 # Jannes has extracted the IDs which correspond to 0%, 30%, 100% deuterium. However, for now we only
 # care about 0% vs 100% deuterium
 
@@ -127,55 +113,25 @@ def getIdLabels(fname):
       labels.add(line.strip())
   return labels
 
-# Calculates the relative nucleotide composition of a read.
-# TODO move the plotting functionality somewhere else!
+# kmer string to int. Note that this hash is language-ignorant. Strings of different length yield
+# the same hash, ie @kmer2int('') == kmer2int('AAA')@. One should use this RNA hash only for strings
+# of the same length.
+#
+# This is exactly where we use this, to accumulate in vectors of the same length.
 
-def relNucComp(pd):
-  ks1 = set()
-  ks2 = set()
-  ks3 = set()
-  for n in pd['nstats']:
-    for k in n.k1.keys():
-      ks1.add(k)
-    for k in n.k2.keys():
-      ks2.add(k)
-    for k in n.k3.keys():
-      ks3.add(k)
-  ks1=list(ks1)
-  ks1.sort()
-  ks2=list(ks2)
-  ks2.sort()
-  ks3=list(ks3)
-  ks3.sort()
-  print(ks1)
-  print(ks2)
-  print(ks3)
-  xs1 = []
-  xs2 = []
-  xs3 = []
-  for n in pd['nstats']:
-    s1 = sum(n.k1.values())
-    s2 = sum(n.k2.values())
-    s3 = sum(n.k3.values())
-    arr1 = np.array([n.k1[k] / s1 for k in ks1])
-    arr2 = np.array([n.k2[k] / s2 for k in ks2])
-    arr3 = np.array([n.k3[k] / s3 for k in ks3])
-    xs1.append(arr1)
-    xs2.append(arr2)
-    xs3.append(arr3)
-  pd['n1rel'] = xs1
-  pd['n2rel'] = xs2
-  pd['n3rel'] = xs3
-  xs1bs = np.vstack(pd['n1rel'][pd['labels']==0])
-  xs1dt = np.vstack(pd['n1rel'][pd['labels']==1])
-  _, axes = plt.subplots(2,4, figsize=(40,10))
-  for c,lbl in enumerate(ks1):
-    ax = axes[0,c]
-    ax.set_xlim(0.1,0.4)
-    az.plot_posterior({lbl + ' (H2O)': xs1bs[:,c]},ax=ax, textsize=26)
-    ax = axes[1,c]
-    ax.set_xlim(0.1,0.4)
-    az.plot_posterior({lbl + ' (D2O)': xs1dt[:,c]},ax=ax, textsize=26)
-  plt.savefig('nucleotide-distributions.pdf', bbox_inches='tight')
-  return
+def kmer2int(kmer):
+  k = 0
+  lkup = { 'A': 0, 'C': 1, 'G': 2, 'U': 3, 'T': 3 }
+  for i,c in enumerate(reversed(kmer)):
+    z = lkup.get(c.upper())
+    if k is not None and z is not None:
+      k += z * 4**i
+    if z is None:
+      k = None
+  return k
+
+# int to kmer, given length of kmer
+
+def int2kmer(k, i):
+  pass
 
