@@ -75,7 +75,8 @@ class Construct:
 
 
 
-# 
+# The summary statistics we use for our models.
+# TODO switch to pandas frame here?
 
 class SummaryStats (Fast5.Fast5Accumulator):
   def __init__ (self):
@@ -84,7 +85,12 @@ class SummaryStats (Fast5.Fast5Accumulator):
     self.sufMedian = []
     self.sufMad = []
     self.numNucleotides = []
-    pass
+    self.k1Medians = []
+    self.k1Mads = []
+    self.k3Medians = []
+    self.k3Mads = []
+    self.k5Medians = []
+    self.k5Mads = []
   def insRead (self, preRaw, segmented, nucs, rid):
     self.readIDs.append(rid)
     self.preMedian.append(np.median(preRaw))
@@ -92,11 +98,18 @@ class SummaryStats (Fast5.Fast5Accumulator):
     self.sufMedian.append(np.median(suf))
     self.sufMad.append(Stats.medianAbsoluteDeviation(suf))
     self.numNucleotides.append(len(nucs))
+    kmer1Med,kmer1Mad = kmerMedians(1,nucs,segmented)
+    kmer3Med,kmer3Mad = kmerMedians(3,nucs,segmented)
+    kmer5Med,kmer5Mad = kmerMedians(5,nucs,segmented)
+    self.k1Medians.append(kmer1Med)
+    self.k1Mads.append(kmer1Mad)
+    self.k3Medians.append(kmer3Med)
+    self.k3Mads.append(kmer3Mad)
+    self.k5Medians.append(kmer5Med)
+    self.k5Mads.append(kmer5Mad)
+  def fixup (self):
+    # TODO fix up the "0" entries in *Med, *Mad using the average of all other entries
     pass
-  # will convert the internal structures to arrays, where beneficial
-  #def convertToArrays(self):
-  #  self.sufMad = np.array(self.sufMad)
-  #  pass
 
 # Take the full information for reads and generates summary statistics
 # label information provides a lookup ReadID -> label in [0,1], however the label might well be
@@ -133,5 +146,37 @@ def kmer2int(kmer):
 # int to kmer, given length of kmer
 
 def int2kmer(k, i):
+  # TODO provide inverse of kmer2int
   pass
+
+# construct the k-mer centered around index i using the nucs sequence.
+# Clamps kmers at the ends to repeated nucleotides.
+# Assumes that the kmer is center-indexed.
+
+def kmerAt(k,nucs,i):
+  kmer=[]
+  for i in range(i-k-1,i+k):
+    j = min(max(0,i),len(nucs)-1)
+    n = nucs[j]
+    kmer.append(n)
+  return kmer
+
+# Return median information for each possible kmer, unseen kmers get 0 and we should impute the
+# missing information later!
+
+def kmerMedians (kmerLen, nucs, segments):
+  assert len(nucs) == len(segments)
+  medians = {}
+  for i,s in enumerate(segments):
+    k = kmerAt(kmerLen,nucs,i)
+    m = np.median(s)
+    vs = medians.get(k,[])
+    vs.append(m)
+    medians[k] = vs
+  medianVec = np.zeros(4**kmerLen)
+  madVec = np.zeros(4**kmerLen)
+  for k,v in medians:
+    medianVec[kmer2int(k)] = np.mean(v)
+    madVec[kmer2int(k)] = Stats.medianAbsoluteDeviation(v)
+  return medianVec, madVec
 
