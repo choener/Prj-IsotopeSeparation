@@ -145,7 +145,7 @@ class SummaryStats (Fast5.Fast5Accumulator):
     splt=False
     if uniqLen == 2: splt = True
     plt.figure(figsize=(xsize,8))
-    sb.violinplot(data=df, x='sufTy', y='pA', hue='label', split=splt)
+    sb.violinplot(data=df, x='sufTy', y='pA', hue='label', split=splt, cut=0)
     plt.savefig(outname, bbox_inches='tight')
     plt.close()
     # random subset
@@ -154,7 +154,7 @@ class SummaryStats (Fast5.Fast5Accumulator):
       subset = uniqueSufTys[0:63]
       subdf = df[df['sufTy'].isin(subset)]
       plt.figure(figsize=(64,8))
-      sb.violinplot(data=subdf, x='sufTy', y='pA', hue='label', split=splt)
+      sb.violinplot(data=subdf, x='sufTy', y='pA', hue='label', split=splt, cut=0)
       plt.savefig("sub_" + outname, bbox_inches='tight')
       plt.close()
 
