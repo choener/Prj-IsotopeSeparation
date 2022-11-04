@@ -17,7 +17,8 @@ import pymc as mc
 
 import Construct
 
-font = { 'weight': 'bold', 'size': 30 }
+font = { 'size': 10 }
+#font = { 'weight': 'bold', 'size': 10 }
 pl.rc('font', **font)
 
 # 

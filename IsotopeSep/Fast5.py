@@ -87,11 +87,14 @@ def nucleotides(fast5, key):
 # to pA (pico Ampere). Returned are presignals, main signals (split again for each move point), the
 # nucleotide strings and the ID for each read.
 
-def fast5Handler (fname, accumulator):
+def fast5Handler (fname, accumulator, maxCnt = None):
   fast5 = h5py.File(fname, 'r')
   numKeys = len(fast5.keys())
   i=0
   for r in fast5.keys():
+    # early break is possible
+    if maxCnt is not None and i>=maxCnt:
+      break
     i+=1
     raw = undigitise(fast5,r, rawSignal(fast5,r))
     (preRaw,sufRaw) = splitRawSignal(fast5,r,raw)
@@ -101,12 +104,15 @@ def fast5Handler (fname, accumulator):
     l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):6d} sufRaw: {len(sufRaw):6d} nucs: {len(nucs):6d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
     accumulator.insRead(preRaw, segmented, nucs, rid)
   fast5.close()
-  return accumulator
+  return accumulator, i
 
 class Fast5Accumulator:
   def __init__ (self):
     pass
   def insRead (self, preRaw, segmented, nucs, rid):
+    pass
+  # allows us to do any cleanup / stats that should be done after a single file has been fully read.
+  def postFile (self):
     pass
 
 # This wrapper will just accumulate data for a pandas dataframe and perform no summary statistics
