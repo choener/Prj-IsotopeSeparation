@@ -1,6 +1,7 @@
 
 # Fast5 handling methods
 
+import abc
 import h5py
 import numpy as np
 import pandas as pandas
@@ -106,12 +107,15 @@ def fast5Handler (fname, accumulator, maxCnt = None):
   fast5.close()
   return accumulator, i
 
-class Fast5Accumulator:
+class Fast5Accumulator(metaclass=abc.ABCMeta):
+  @abc.abstractmethod
   def __init__ (self):
     pass
+  @abc.abstractmethod
   def insRead (self, preRaw, segmented, nucs, rid):
     pass
   # allows us to do any cleanup / stats that should be done after a single file has been fully read.
+  @abc.abstractmethod
   def postFile (self):
     pass
 

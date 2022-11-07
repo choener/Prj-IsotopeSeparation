@@ -92,6 +92,13 @@ class SummaryStats (Fast5.Fast5Accumulator):
     self.k3Mads = []
     self.k5Medians = []
     self.k5Mads = []
+    self.k1LenMean = []
+    self.k1LenVar  = []
+    self.k3LenMean = []
+    self.k3LenVar  = []
+    self.k5LenMean = []
+    self.k5LenVar  = []
+    self.uniqueSufTys = None
   def insRead (self, preRaw, segmented, nucs, rid):
     # TODO consider using limitReads to limit us to this limit but for each label type
     self.readIDs.append(rid)
@@ -101,15 +108,21 @@ class SummaryStats (Fast5.Fast5Accumulator):
     self.sufMedian.append(np.median(suf))
     self.sufMad.append(Stats.medianAbsoluteDeviation(suf))
     self.numNucleotides.append(len(nucs))
-    kmer1Med,kmer1Mad = kmerMedians(1,nucs,segmented)
-    kmer3Med,kmer3Mad = kmerMedians(3,nucs,segmented)
-    kmer5Med,kmer5Mad = kmerMedians(5,nucs,segmented)
+    kmer1Med,kmer1Mad,kmer1LenMean,kmer1LenVar = kmerStatistics(1,nucs,segmented)
+    kmer3Med,kmer3Mad,kmer3LenMean,kmer3LenVar = kmerStatistics(3,nucs,segmented)
+    kmer5Med,kmer5Mad,kmer5LenMean,kmer5LenVar = kmerStatistics(5,nucs,segmented)
     self.k1Medians.append(kmer1Med)
     self.k1Mads.append(kmer1Mad)
     self.k3Medians.append(kmer3Med)
     self.k3Mads.append(kmer3Mad)
     self.k5Medians.append(kmer5Med)
     self.k5Mads.append(kmer5Mad)
+    self.k1LenMean.append(kmer1LenMean)
+    self.k1LenVar.append(kmer1LenVar)
+    self.k3LenMean.append(kmer3LenMean)
+    self.k3LenVar.append(kmer3LenVar)
+    self.k5LenMean.append(kmer5LenMean)
+    self.k5LenVar.append(kmer5LenVar)
   def fixup (self):
     # TODO fix up the "0" entries in *Med, *Mad using the average of all other entries
     # TODO create pandas dataframe
@@ -125,12 +138,17 @@ class SummaryStats (Fast5.Fast5Accumulator):
     sb.violinplot(data=df, x='label', y='medX')
     plt.savefig('postfile.pdf', bbox_inches='tight')
     plt.close()
-    self.kXmedians('k1.pdf', self.k1Medians)
-    self.kXmedians('k3.pdf', self.k3Medians)
-    self.kXmedians('k5.pdf', self.k5Medians)
+    self.uniqueSufTys = None
     self.kXmedians('k1mad.pdf', self.k1Mads)
+    self.kXmedians('k1.pdf', self.k1Medians)
+    self.uniqueSufTys = None
     self.kXmedians('k3mad.pdf', self.k3Mads)
+    self.kXmedians('k3.pdf', self.k3Medians)
+    self.uniqueSufTys = None
+    self.kXmedians('k5lenmean.pdf', self.k5LenMean)
+    self.kXmedians('k5lenvar.pdf', self.k5LenVar)
     self.kXmedians('k5mad.pdf', self.k5Mads)
+    self.kXmedians('k5.pdf', self.k5Medians)
     plt.close()
   # TODO produce random subset, if too many sufTy ...
   def kXmedians(self,outname,kwhat):
@@ -141,6 +159,7 @@ class SummaryStats (Fast5.Fast5Accumulator):
                              , 'sufTy': np.concatenate([np.array(range(0,len(x))) for x in kwhat])
                              })
     df = df.dropna()
+    assert df is not None
     uniqLen = len(np.unique(df['label']))
     splt=False
     if uniqLen == 2: splt = True
@@ -149,9 +168,10 @@ class SummaryStats (Fast5.Fast5Accumulator):
     plt.savefig(outname, bbox_inches='tight')
     plt.close()
     # random subset
-    uniqueSufTys = np.random.permutation(np.unique(df['sufTy']))
-    if len(uniqueSufTys) > 65:
-      subset = uniqueSufTys[0:63]
+    if self.uniqueSufTys is None:
+      self.uniqueSufTys = np.random.permutation(np.unique(df['sufTy']))
+    if len(self.uniqueSufTys) > 65:
+      subset = self.uniqueSufTys[0:63]
       subdf = df[df['sufTy'].isin(subset)]
       plt.figure(figsize=(64,8))
       sb.violinplot(data=subdf, x='sufTy', y='pA', hue='label', split=splt, cut=0)
@@ -226,19 +246,31 @@ def kmerAt(k,nucs,i):
 # Return median information for each possible kmer, unseen kmers get 0 and we should impute the
 # missing information later!
 
-def kmerMedians (kmerLen, nucs, segments):
+def kmerStatistics (kmerLen, nucs, segments):
   assert len(nucs) == len(segments)
   medians = {}
+  lengths = {}
   for i,s in enumerate(segments):
     k = kmerAt(kmerLen,nucs,i)
     m = np.median(s)
     vs = medians.get(k,[])
     vs.append(m)
     medians[k] = vs
+    ls = lengths.get(k,[])
+    ls.append(len(s))
+    lengths[k] = ls
   medianVec = np.zeros(4**kmerLen)
   madVec = np.zeros(4**kmerLen)
+  lengthMeanVec = np.zeros(4**kmerLen)
+  lengthVarVec = np.zeros(4**kmerLen)
+  #log.info(f'kmerStatistics.medians {kmerLen}')
   for k,v in medians.items():
     medianVec[kmer2int(k)] = np.mean(v)
     madVec[kmer2int(k)] = Stats.medianAbsoluteDeviation(v)
-  return medianVec, madVec
+  #log.info(f'kmerStatistics.length {kmerLen}')
+  for k,v in lengths.items():
+    lengthMeanVec[kmer2int(k)] = np.mean(v)
+    lengthVarVec[kmer2int(k)]  = np.var(v)
+  #log.info(f'kmerStatistics DONE')
+  return medianVec, madVec, lengthMeanVec, lengthVarVec
 
