@@ -270,7 +270,7 @@ def kmerStatistics (kmerLen, nucs, segments):
   #log.info(f'kmerStatistics.length {kmerLen}')
   for k,v in lengths.items():
     lengthMeanVec[kmer2int(k)] = np.mean(v)
-    lengthVarVec[kmer2int(k)]  = np.var(v)
+    lengthVarVec[kmer2int(k)]  = Stats.medianAbsoluteDeviation(v) # TODO rename tgt
   #log.info(f'kmerStatistics DONE')
   return medianVec, madVec, lengthMeanVec, lengthVarVec
 
