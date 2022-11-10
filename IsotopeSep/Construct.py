@@ -245,6 +245,8 @@ def kmerAt(k,nucs,i):
 
 # Return median information for each possible kmer, unseen kmers get 0 and we should impute the
 # missing information later!
+#
+# TODO maybe return a class object
 
 def kmerStatistics (kmerLen, nucs, segments):
   assert len(nucs) == len(segments)
@@ -261,16 +263,16 @@ def kmerStatistics (kmerLen, nucs, segments):
     lengths[k] = ls
   medianVec = np.zeros(4**kmerLen)
   madVec = np.zeros(4**kmerLen)
-  lengthMeanVec = np.zeros(4**kmerLen)
-  lengthVarVec = np.zeros(4**kmerLen)
+  lengthMedianVec = np.zeros(4**kmerLen)
+  lengthMadVec = np.zeros(4**kmerLen)
   #log.info(f'kmerStatistics.medians {kmerLen}')
   for k,v in medians.items():
     medianVec[kmer2int(k)] = np.mean(v)
     madVec[kmer2int(k)] = Stats.medianAbsoluteDeviation(v)
   #log.info(f'kmerStatistics.length {kmerLen}')
   for k,v in lengths.items():
-    lengthMeanVec[kmer2int(k)] = np.mean(v)
-    lengthVarVec[kmer2int(k)]  = Stats.medianAbsoluteDeviation(v) # TODO rename tgt
+    lengthMedianVec[kmer2int(k)] = np.median(v)
+    lengthMadVec[kmer2int(k)]  = Stats.medianAbsoluteDeviation(v) # TODO rename tgt
   #log.info(f'kmerStatistics DONE')
-  return medianVec, madVec, lengthMeanVec, lengthVarVec
+  return medianVec, madVec, lengthMedianVec, lengthMadVec
 
