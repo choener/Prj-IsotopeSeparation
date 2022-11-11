@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sb
 import sys
+from scipy import stats
 
 import Fast5
 import Stats
@@ -30,7 +31,7 @@ class Construct:
     self.pickleDir = ""
     self.reads = reads
     self.summaryStats = None        # data frame containing all summary statistics
-    assert len(barcodes)==2
+    # assert len(barcodes)>=1
     assert len(reads)>0
     for pcnt,barcode in barcodes:
       log.info(f'{int(pcnt):3d}%  ->  barcode file: {barcode:s}')
@@ -139,32 +140,36 @@ class SummaryStats (Fast5.Fast5Accumulator):
     plt.savefig('postfile.pdf', bbox_inches='tight')
     plt.close()
     self.uniqueSufTys = None
-    self.kXmedians('k1mad.pdf', self.k1Mads)
+    self.kXmedians('k1mad.pdf', self.k1Mads, y='pA +- mad')
     self.kXmedians('k1.pdf', self.k1Medians)
     self.uniqueSufTys = None
-    self.kXmedians('k3mad.pdf', self.k3Mads)
+    self.kXmedians('k3mad.pdf', self.k3Mads, y='pA +- mad')
     self.kXmedians('k3.pdf', self.k3Medians)
     self.uniqueSufTys = None
-    self.kXmedians('k5lenmean.pdf', self.k5LenMean)
-    self.kXmedians('k5lenvar.pdf', self.k5LenVar)
-    self.kXmedians('k5mad.pdf', self.k5Mads)
+    self.kXmedians('k5lenmedian.pdf', self.k5LenMean, y='length mean')
+    self.kXmedians('k5lenmad.pdf', self.k5LenVar, y='length var')
+    self.kXmedians('k5mad.pdf', self.k5Mads, y='pA +- mad')
     self.kXmedians('k5.pdf', self.k5Medians)
     plt.close()
   # TODO produce random subset, if too many sufTy ...
-  def kXmedians(self,outname,kwhat):
+  def kXmedians(self,outname,kwhat, y=None):
+    lbl = 'pA'
+    if y is not None:
+      lbl = y
     assert len(kwhat) > 0
     xsize = max(4,min(1 * len(kwhat[0]),2**8))
     df = pd.DataFrame(data = { 'label': np.concatenate([ np.repeat(x, len(y)) for x,y in zip(self.label, kwhat) ])
-                             , 'pA': fixValuesToMedian(np.concatenate([ np.array(x) for x in kwhat ]))
+                             , lbl: fixValuesToMedian(np.concatenate([ np.array(x) for x in kwhat ]))
                              , 'sufTy': np.concatenate([np.array(range(0,len(x))) for x in kwhat])
                              })
     df = df.dropna()
+    df = df[(np.abs(stats.zscore(df[lbl]))<3)]
     assert df is not None
     uniqLen = len(np.unique(df['label']))
     splt=False
     if uniqLen == 2: splt = True
     plt.figure(figsize=(xsize,8))
-    sb.violinplot(data=df, x='sufTy', y='pA', hue='label', split=splt, cut=0)
+    sb.violinplot(data=df, x='sufTy', y=lbl, hue='label', split=splt, cut=0)
     plt.savefig(outname, bbox_inches='tight')
     plt.close()
     # random subset
@@ -174,7 +179,7 @@ class SummaryStats (Fast5.Fast5Accumulator):
       subset = self.uniqueSufTys[0:63]
       subdf = df[df['sufTy'].isin(subset)]
       plt.figure(figsize=(64,8))
-      sb.violinplot(data=subdf, x='sufTy', y='pA', hue='label', split=splt, cut=0)
+      sb.violinplot(data=subdf, x='sufTy', y=lbl, hue='label', split=splt, cut=0)
       plt.savefig("sub_" + outname, bbox_inches='tight')
       plt.close()
 
