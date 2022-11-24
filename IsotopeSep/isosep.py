@@ -38,6 +38,9 @@ def main ():
   args = parser.parse_args()
   # fill infrastructure for data
   construct = Construct.Construct(barcodes = args.barcode, reads = args.reads, pickleDir = args.pickle, limitReads = args.limitreads, plotSquiggle = args.plotsquiggle)
+  construct.save("tmp.pickle")
+  ldcnstrct = Construct.Construct.load("tmp.pickle")
+  assert (ldcnstrct == construct)
   #labels={}
   #labels['0'] = getIdLabels('barcode14.ids')
   #labels['30'] = getIdLabels('barcode15.ids')
@@ -77,3 +80,4 @@ def main ():
 
 if __name__ == "__main__":
   main()
+

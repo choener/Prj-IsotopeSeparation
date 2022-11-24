@@ -4,13 +4,14 @@
 
 from os.path import exists
 from pathlib import Path
+from scipy import stats
 import logging as log
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pickle
 import seaborn as sb
 import sys
-from scipy import stats
 
 import Fast5
 import Stats
@@ -49,12 +50,20 @@ class Construct:
     if pickleDir is not None:
       self.pickleDir = pickleDir
       self.pickleOrRead(limitReads, plotSquiggle)
-
+  # save a Construct to file
+  def save(self, fname):
+    with open(fname, 'wb') as f:
+      pickle.dump(self.__dict__,f)
+  # construct = Construct.load("f.name")
+  @classmethod
+  def load(cls, fname):
+    with open(fname, 'rb') as f:
+      return pickle.load(f)
   # Extract summary stats from pickle or read from actual reads
   def pickleOrRead(self, limitReads = None, plotSquiggle = None):
     fname = self.pickleDir + '/summaryStats.pandas'
     if exists(fname):
-      self.summaryStats = pandas.read_pickle(fname)
+      self.summaryStats = pd.read_pickle(fname)
     else:
       cnt = 0
       totReads = 0
