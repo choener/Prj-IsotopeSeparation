@@ -25,11 +25,13 @@ import Stats
 # each read has been processed, summary statistics are immediately generated, otherwise we risk
 # memory overflows, since intermediate data is huge.
 
+# TODO parallelization of extracting data from reads
+
 class Construct:
+
   # Initialize (and pickle)
-  def __init__(self, barcodes, reads, pickleDir, limitReads = None, plotSquiggle = None):
+  def __init__(self, barcodes, reads):
     self.labels = {}
-    self.pickleDir = ""
     self.reads = reads
     self.summaryStats = None        # data frame containing all summary statistics
     # assert len(barcodes)>=1
@@ -45,20 +47,24 @@ class Construct:
         s = self.labels[l].intersection(self.labels[k])
         if len(s) > 0:
           sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
-    # either load load from pickle dir (and save if first time running the data), or just go through
-    # all data
-    if pickleDir is not None:
-      self.pickleDir = pickleDir
-      self.pickleOrRead(limitReads, plotSquiggle)
+
   # save a Construct to file
   def save(self, fname):
     with open(fname, 'wb') as f:
       pickle.dump(self.__dict__,f)
+
   # construct = Construct.load("f.name")
   @classmethod
   def load(cls, fname):
     with open(fname, 'rb') as f:
       return pickle.load(f)
+
+  # Continue reading reads, this function will return *true* while there are more reads to be had.
+  # This allows interleaving reading and pickling.
+  def readReads(self, numReads = None):
+    # TODO return true/false depending on still open reads
+    pass
+
   # Extract summary stats from pickle or read from actual reads
   def pickleOrRead(self, limitReads = None, plotSquiggle = None):
     fname = self.pickleDir + '/summaryStats.pandas'
