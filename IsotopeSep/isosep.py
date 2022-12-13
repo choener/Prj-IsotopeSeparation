@@ -6,6 +6,7 @@ import argparse
 import logging
 import logging as log
 import matplotlib as pl
+import os
 import pandas as pandas
 import pymc as mc
 
@@ -26,15 +27,18 @@ def main ():
   parser = argparse.ArgumentParser()
   parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')
   parser.add_argument('--limitreads', help='Limit the number of reads to read when no pickle exists')
-  parser.add_argument('--pickle', default="./tmp.pickle", help='where to write pickle data to')
+  parser.add_argument('--outputs', default="tmp", help='where to write output and pickle data to')
   parser.add_argument('--reads', action='append', help='directories where reads are located')
   args = parser.parse_args()
   #
   # fill infrastructure for data
+  if not exists (args.outputs):
+    os.mkdir(args.outputs)
   construct = Construct.Construct(barcodes = args.barcode)
+  picklePath = os.path.join(args.outputs, "construct.pickle")
   # check if we have something to load, if so do that
-  if exists(args.pickle):
-    loaded = Construct.Construct.load(args.pickle)
+  if exists(picklePath):
+    loaded = Construct.Construct.load(picklePath)
     construct.merge(loaded)
     pass
   totReads = 0
@@ -49,7 +53,7 @@ def main ():
       log.info(f'FILE PATH" {rname}')
       cnt = construct.handleReadFile(rname, limitReads)
       totReads += cnt
-      construct.save(args.pickle)
+      construct.save(picklePath)
   log.info(f'Model loaded with {len(construct)} reads')
 
 
