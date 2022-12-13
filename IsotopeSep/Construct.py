@@ -30,13 +30,10 @@ import Stats
 class Construct:
 
   # Initialize (and pickle)
-  def __init__(self, barcodes, reads):
+  def __init__(self, barcodes):
     self.labels = {}
-    self.reads = reads
-    self.finishedReads = []         # store which reads we have finished working with
+    self.finishedReads = set()      # store which reads we have finished working with
     self.summaryStats = None        # data frame containing all summary statistics
-    # assert len(barcodes)>=1
-    assert len(reads)>0
     for pcnt,barcode in barcodes:
       log.info(f'{int(pcnt):3d}%  ->  barcode file: {barcode:s}')
       self.labels[pcnt] = getIdLabels(barcode)
@@ -49,6 +46,9 @@ class Construct:
         if len(s) > 0:
           sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
 
+  def __len__(self):
+    return (len(self.finishedReads))
+
   # save a Construct to file
   def save(self, fname):
     with open(fname, 'wb') as f:
@@ -57,40 +57,77 @@ class Construct:
   # construct = Construct.load("f.name")
   @classmethod
   def load(cls, fname):
+    c = cls(barcodes = [])
     with open(fname, 'rb') as f:
-      return pickle.load(f)
+      dict = pickle.load(f)
+      c.__dict__.update(dict)
+      assert (c.summaryStats is not None)
+      sz = len(c.finishedReads)
+      assert (sz == len(c.summaryStats))
+      return c
 
   # will merge the "other" datastructure into ourself. Doesn't do any fancy error checking.
   def merge(self, other):
-    pass
-
-  # Continue reading reads, this function will return *true* while there are more reads to be had.
-  # This allows interleaving reading and pickling.
-  def readReads(self, numReads = None):
-    # TODO return true/false depending on still open reads
-    pass
-
-  # Extract summary stats from pickle or read from actual reads
-  def pickleOrRead(self, limitReads = None, plotSquiggle = None):
-    fname = self.pickleDir + '/summaryStats.pandas'
-    if exists(fname):
-      self.summaryStats = pd.read_pickle(fname)
+    self.labels.update(other.labels)
+    self.finishedReads.update(other.finishedReads)
+    if self.summaryStats is None:
+      self.summaryStats = other.summaryStats
     else:
-      cnt = 0
-      totReads = 0
-      accum = SummaryStats(labels = self.labels)
-      for path in self.reads:
-        log.info(f'READ PATH: {path}')
-        for rname in Path(path).rglob(f'*.fast5'):
-          cnt += 1
-          if limitReads is not None and int(limitReads) < cnt:
-            break
-          maxCnt = None
-          if limitReads is not None:
-            maxCnt = int(limitReads) - totReads
-          accum, rcnt = Fast5.fast5Handler(rname,accum, maxCnt)
-          totReads += rcnt
-      accum.postFile()
+      self.summaryStats.merge(other.summaryStats)
+
+  # handle all reads within a file. If maxCnt is given, then stop after this many new reads have
+  # been collected. This allows for stopping and restarting.
+  #
+  # TODO split the loop into two, parallelizing the accum.insRead?
+  #
+  def handleReadFile(self, fname, limitNewReadCnt = None):
+    cnt = 1
+    if self.summaryStats is None:
+      self.summaryStats = SummaryStats(labels = self.labels)
+    rids = Fast5.fast5Reads(fname)
+    assert (rids is not None)
+    rids = set(rids)
+    rids.difference_update(self.finishedReads)
+    if limitNewReadCnt is None:
+      limitNewReadCnt = len(rids)
+    numKeys = min(len(rids), limitNewReadCnt)
+    # only new reads considered
+    for r in rids:
+      if cnt > limitNewReadCnt:
+        break
+      preRaw, segmented, nucs = Fast5.fast5ReadData(fname, r, i = cnt, numKeys = numKeys)
+      self.summaryStats.insRead(preRaw, segmented, nucs, r)
+      self.finishedReads.add(r)
+      cnt = cnt + 1
+    return cnt
+
+#  # Continue reading reads, this function will return *true* while there are more reads to be had.
+#  # This allows interleaving reading and pickling.
+#  def readReads(self, numReads = None):
+#    # TODO return true/false depending on still open reads
+#    pass
+
+#  # Extract summary stats from pickle or read from actual reads
+#  def pickleOrRead(self, limitReads = None, plotSquiggle = None):
+#    fname = self.pickleDir + '/summaryStats.pandas'
+#    if exists(fname):
+#      self.summaryStats = pd.read_pickle(fname)
+#    else:
+#      cnt = 0
+#      totReads = 0
+#      accum = SummaryStats(labels = self.labels)
+#      for path in self.reads:
+#        log.info(f'READ PATH: {path}')
+#        for rname in Path(path).rglob(f'*.fast5'):
+#          cnt += 1
+#          if limitReads is not None and int(limitReads) < cnt:
+#            break
+#          maxCnt = None
+#          if limitReads is not None:
+#            maxCnt = int(limitReads) - totReads
+#          accum, rcnt = Fast5.fast5Handler(rname,accum, maxCnt)
+#          totReads += rcnt
+#      accum.postFile()
 
 
 
@@ -120,6 +157,11 @@ class SummaryStats (Fast5.Fast5Accumulator):
     self.k5LenMean = []
     self.k5LenVar  = []
     self.uniqueSufTys = None
+  # the length method only returns the length of one of its members, since it is assumed that all
+  # members have the same length
+  def __len__(self):
+    assert(len(self.readIDs) == len(self.k5LenVar))
+    return (len(self.readIDs))
   def insRead (self, preRaw, segmented, nucs, rid):
     # TODO consider using limitReads to limit us to this limit but for each label type
     self.readIDs.append(rid)
@@ -144,6 +186,25 @@ class SummaryStats (Fast5.Fast5Accumulator):
     self.k3LenVar.append(kmer3LenVar)
     self.k5LenMean.append(kmer5LenMean)
     self.k5LenVar.append(kmer5LenVar)
+  def merge(self, other):
+    self.readIDs.extend(other.readIDs)
+    self.label.extend(other.label)
+    self.preMedian.extend(other.preMedian)
+    self.sufMedian.extend(other.sufMedian)
+    self.sufMad.extend(other.sufMad)
+    self.numNucleotides.extend(other.numNucleotides)
+    self.k1Medians.extend(other.k1Medians)
+    self.k1Mads.extend(other.k1Mads)
+    self.k3Medians.extend(other.k3Medians)
+    self.k3Mads.extend(other.k3Mads)
+    self.k5Medians.extend(other.k5Medians)
+    self.k5Mads.extend(other.k5Mads)
+    self.k1LenMean.extend(other.k1LenMean)
+    self.k1LenVar.extend(other.k1LenVar)
+    self.k3LenMean.extend(other.k3LenMean)
+    self.k3LenVar.extend(other.k3LenVar)
+    self.k5LenMean.extend(other.k5LenMean)
+    self.k5LenVar.extend(other.k5LenVar)
   def fixup (self):
     # TODO fix up the "0" entries in *Med, *Mad using the average of all other entries
     # TODO create pandas dataframe

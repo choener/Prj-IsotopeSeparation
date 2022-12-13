@@ -3,10 +3,9 @@
 
 import abc
 import h5py
-import numpy as np
-import pandas as pandas
-import statistics
 import logging as l
+import pandas as pandas
+import sys
 
 
 
@@ -107,9 +106,34 @@ def fast5Handler (fname, accumulator, maxCnt = None):
   fast5.close()
   return accumulator, i
 
+# Extract all keys from a fast5 file
+
+def fast5Reads(fname):
+  fast5 = h5py.File(fname, 'r')
+  ks = list(fast5.keys())
+  fast5.close()
+  return ks
+
+def fast5ReadData(fname, r, i = 0, numKeys = 0):
+  fast5 = h5py.File(fname, 'r')
+  raw = undigitise(fast5,r, rawSignal(fast5,r))
+  (preRaw,sufRaw) = splitRawSignal(fast5,r,raw)
+  segmented = segmentSignal(sufRaw,moveTable(fast5,r))
+  nucs = nucleotides(fast5,r)
+  rid = r.split('read_')[1]
+  l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):6d} sufRaw: {len(sufRaw):6d} nucs: {len(nucs):6d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
+  fast5.close()
+  return preRaw, segmented, nucs
+
+
+# Generic accumulators for statistics
+
 class Fast5Accumulator(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def __init__ (self):
+    pass
+  @abc.abstractmethod
+  def __len__ (self):
     pass
   @abc.abstractmethod
   def insRead (self, preRaw, segmented, nucs, rid):
@@ -118,6 +142,12 @@ class Fast5Accumulator(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def postFile (self):
     pass
+  @abc.abstractmethod
+  def merge(self, other):
+    sys.exit("ERROR: merge has not been implemented")
+    pass
+
+
 
 # This wrapper will just accumulate data for a pandas dataframe and perform no summary statistics
 # calculation
@@ -130,11 +160,19 @@ class AccumDF (Fast5Accumulator):
     self.readIDs = []
     pass
 
+  # insert a single read
   def insRead (self, preRaw, segmented, nucs, rid):
     self.preSignals.append(preRaw)
     self.mainSignals.append(segmented)
     self.nucStrings.append(nucs)
     self.readIDs.append(rid)
+
+  # merge two accumulators into one
+  def mergeAccumulator(self, other):
+    self.preSignals.extend(other.preSignals)
+    self.mainSignals.extend(other.preSignals)
+    self.nucStrings.extend(other.nucStrings)
+    self.readIDs.extend(other.readIDs)
 
   def getDF (self):
     return pandas.DataFrame(
@@ -144,7 +182,11 @@ class AccumDF (Fast5Accumulator):
       , 'readIDs': self.readIDs
       })
 
+
+
+# An accumulator that does nothing
+
 class VoidDF (Fast5Accumulator):
-  def insRead (self, preRaw, segmented, nucs, rid):
+  def insRead (self, __preRaw__, __segmented__, __nucs__, __rid__):
     pass
 
