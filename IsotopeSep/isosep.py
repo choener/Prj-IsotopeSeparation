@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+from pathlib import Path
 from os.path import exists
 from pymc import Model, Normal, HalfCauchy, sample, Dirichlet, HalfNormal
 from sklearn.metrics import accuracy_score, f1_score, confusion_matrix
@@ -14,8 +15,10 @@ import numpy as np
 import pandas as pandas
 import pickle
 import pymc as mc
+import logging as log
 
 import Construct
+import Fast5
 
 font = { 'size': 10 }
 #font = { 'weight': 'bold', 'size': 10 }
@@ -36,11 +39,27 @@ def main ():
   parser.add_argument('--plotsquiggle', help='Plot the time series squiggle plot for every (!) read')
   parser.add_argument('--reads', action='append', help='directories where reads are located')
   args = parser.parse_args()
+  #
   # fill infrastructure for data
-  construct = Construct.Construct(barcodes = args.barcode, reads = args.reads, pickleDir = args.pickle, limitReads = args.limitreads, plotSquiggle = args.plotsquiggle)
+  construct = Construct.Construct(barcodes = args.barcode, reads = args.reads)
+  # check if we have something to load, if so do that
+  if exists("tmp.pickle"):
+    loaded = Construct.Construct.load("tmp.pickle")
+    construct.merge(loaded)
+    pass
+  # parallelized loop to load additional reads
+  for path in args.reads:
+    log.info(f'READ PATH: {path}')
+    for rname in Path(path).rglob(f'*.fast5'):
+      accum = Construct.SummaryStats(labels = construct.labels)
+      accum, rcnt = Fast5.fast5Handler(rname,accum, 999999)
   construct.save("tmp.pickle")
-  ldcnstrct = Construct.Construct.load("tmp.pickle")
-  assert (ldcnstrct == construct)
+
+
+
+
+
+
   #labels={}
   #labels['0'] = getIdLabels('barcode14.ids')
   #labels['30'] = getIdLabels('barcode15.ids')

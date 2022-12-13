@@ -23,13 +23,14 @@
       pyenv = pkgs.python3.withPackages (p: [
         p.arviz
         p.h5py
+        p.joblib
         p.matplotlib
         p.numpy
         p.pandas
         p.pymc3
         p.scikitlearn
-        p.seaborn
         p.scipy
+        p.seaborn
       ]);
 
     in rec {

@@ -33,6 +33,7 @@ class Construct:
   def __init__(self, barcodes, reads):
     self.labels = {}
     self.reads = reads
+    self.finishedReads = []         # store which reads we have finished working with
     self.summaryStats = None        # data frame containing all summary statistics
     # assert len(barcodes)>=1
     assert len(reads)>0
@@ -58,6 +59,10 @@ class Construct:
   def load(cls, fname):
     with open(fname, 'rb') as f:
       return pickle.load(f)
+
+  # will merge the "other" datastructure into ourself. Doesn't do any fancy error checking.
+  def merge(self, other):
+    pass
 
   # Continue reading reads, this function will return *true* while there are more reads to be had.
   # This allows interleaving reading and pickling.
