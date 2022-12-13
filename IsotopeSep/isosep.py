@@ -29,6 +29,7 @@ def main ():
   parser.add_argument('--limitreads', help='Limit the number of reads to read when no pickle exists')
   parser.add_argument('--outputs', default="tmp", help='where to write output and pickle data to')
   parser.add_argument('--reads', action='append', help='directories where reads are located')
+  parser.add_argument('--plots', default=False, action='store_true', help='actually run plots')
   args = parser.parse_args()
   #
   # fill infrastructure for data
@@ -55,6 +56,11 @@ def main ():
       totReads += cnt
       construct.save(picklePath)
   log.info(f'Model loaded with {len(construct)} reads')
+  assert(construct.summaryStats is not None)
+  if (args.plots):
+    construct.summaryStats.postFile(args.outputs)
+  # TODO create data frame
+  # TODO run stats model
 
 
 

@@ -2,8 +2,7 @@
 # The summary statistics construct. Loops over Fast5 files, extracts the information we can use and
 # constructs a pickle, for fasta re-runs (since we have literally 100's of GByte of data).
 
-from os.path import exists
-from pathlib import Path
+from os.path import join
 from scipy import stats
 import logging as log
 import matplotlib.pyplot as plt
@@ -83,7 +82,7 @@ class Construct:
   def handleReadFile(self, fname, limitNewReadCnt = None):
     cnt = 1
     if self.summaryStats is None:
-      self.summaryStats = SummaryStats(labels = self.labels)
+      self.summaryStats = SummaryStats()
     rids = Fast5.fast5Reads(fname)
     assert (rids is not None)
     rids = set(rids)
@@ -96,7 +95,7 @@ class Construct:
       if cnt > limitNewReadCnt:
         break
       preRaw, segmented, nucs = Fast5.fast5ReadData(fname, r, i = cnt, numKeys = numKeys)
-      self.summaryStats.insRead(preRaw, segmented, nucs, r)
+      self.summaryStats.insRead(self.labels, preRaw, segmented, nucs, r)
       self.finishedReads.add(r)
       cnt = cnt + 1
     return cnt
@@ -136,8 +135,7 @@ class Construct:
 # time ...
 
 class SummaryStats (Fast5.Fast5Accumulator):
-  def __init__ (self, labels = None):
-    self.labelLookup = labels
+  def __init__ (self):
     self.readIDs = []
     self.label = []
     self.preMedian = []
@@ -162,10 +160,10 @@ class SummaryStats (Fast5.Fast5Accumulator):
   def __len__(self):
     assert(len(self.readIDs) == len(self.k5LenVar))
     return (len(self.readIDs))
-  def insRead (self, preRaw, segmented, nucs, rid):
+  def insRead (self, labels, preRaw, segmented, nucs, rid):
     # TODO consider using limitReads to limit us to this limit but for each label type
     self.readIDs.append(rid)
-    self.label.append(labelFromRId(self.labelLookup,rid))
+    self.label.append(labelFromRId(labels,rid))
     self.preMedian.append(np.median(preRaw))
     suf = np.concatenate(segmented)
     self.sufMedian.append(np.median(suf))
@@ -210,30 +208,33 @@ class SummaryStats (Fast5.Fast5Accumulator):
     # TODO create pandas dataframe
     pass
   # Draw plots for summary statistics
-  def postFile (self):
+  def postFile (self, odir):
+    # temporary fixups (do not modify original data inplace)
     pre = np.array(self.preMedian)
+    pre[np.where(np.isnan(pre))]=np.nanmedian(pre)
     df = pd.DataFrame(data = { 'rid': np.array(self.readIDs)
                              , 'med': np.array(self.sufMedian)
                              , 'medX': (np.array(self.sufMedian) - pre + np.median(pre))
                              , 'label': np.array(self.label)
                              })
+    print(df['label'])
     sb.violinplot(data=df, x='label', y='medX')
-    plt.savefig('postfile.pdf', bbox_inches='tight')
+    plt.savefig(join(odir,'postfile.pdf'), bbox_inches='tight')
     plt.close()
     self.uniqueSufTys = None
-    self.kXmedians('k1mad.pdf', self.k1Mads, y='pA +- mad')
-    self.kXmedians('k1.pdf', self.k1Medians)
+    self.kXmedians(odir,'k1mad.pdf', self.k1Mads, y='pA +- mad')
+    self.kXmedians(odir,'k1.pdf', self.k1Medians)
     self.uniqueSufTys = None
-    self.kXmedians('k3mad.pdf', self.k3Mads, y='pA +- mad')
-    self.kXmedians('k3.pdf', self.k3Medians)
+    self.kXmedians(odir,'k3mad.pdf', self.k3Mads, y='pA +- mad')
+    self.kXmedians(odir,'k3.pdf', self.k3Medians)
     self.uniqueSufTys = None
-    self.kXmedians('k5lenmedian.pdf', self.k5LenMean, y='length mean')
-    self.kXmedians('k5lenmad.pdf', self.k5LenVar, y='length var')
-    self.kXmedians('k5mad.pdf', self.k5Mads, y='pA +- mad')
-    self.kXmedians('k5.pdf', self.k5Medians)
+    self.kXmedians(odir,'k5lenmedian.pdf', self.k5LenMean, y='length mean')
+    self.kXmedians(odir,'k5lenmad.pdf', self.k5LenVar, y='length var')
+    self.kXmedians(odir,'k5mad.pdf', self.k5Mads, y='pA +- mad')
+    self.kXmedians(odir,'k5.pdf', self.k5Medians)
     plt.close()
   # TODO produce random subset, if too many sufTy ...
-  def kXmedians(self,outname,kwhat, y=None):
+  def kXmedians(self,odir,oname,kwhat, y=None):
     lbl = 'pA'
     if y is not None:
       lbl = y
@@ -251,7 +252,7 @@ class SummaryStats (Fast5.Fast5Accumulator):
     if uniqLen == 2: splt = True
     plt.figure(figsize=(xsize,8))
     sb.violinplot(data=df, x='sufTy', y=lbl, hue='label', split=splt, cut=0)
-    plt.savefig(outname, bbox_inches='tight')
+    plt.savefig(join(odir,oname), bbox_inches='tight')
     plt.close()
     # random subset
     if self.uniqueSufTys is None:
@@ -261,7 +262,7 @@ class SummaryStats (Fast5.Fast5Accumulator):
       subdf = df[df['sufTy'].isin(subset)]
       plt.figure(figsize=(64,8))
       sb.violinplot(data=subdf, x='sufTy', y=lbl, hue='label', split=splt, cut=0)
-      plt.savefig("sub_" + outname, bbox_inches='tight')
+      plt.savefig(join(odir,"sub_" + oname), bbox_inches='tight')
       plt.close()
 
 # replace values far away from the median by the median without these values
@@ -272,11 +273,13 @@ def fixValuesToMedian(xs):
   xs[xs < chk] = med
   return xs
 
-def labelFromRId(labels, rid):
+# lookup the label from the RId; note the potential need for a prefix!
+def labelFromRId(labels, ridd):
+  rid = ridd.removeprefix('read_')
   for k,v in labels.items():
     if rid in v:
       return k
-  return None
+  return -1
 
 # Take the full information for reads and generates summary statistics
 # label information provides a lookup ReadID -> label in [0,1], however the label might well be
