@@ -6,11 +6,9 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
-    jupyterWith.url = "github:tweag/jupyterWith";
-    #IsotopeSep = { url = "./IsotopeSep"; inputs = { nixpkgs.follows = "nixpkgs"; flake-utils.follows = "flake-utils"; jupyterWith.follows = "jupyterWith"; }; };
   };
 
-  outputs = { self, nixpkgs, flake-utils, jupyterWith }: let
+  outputs = { self, nixpkgs, flake-utils }: let
 
     # each system
     eachSystem = system: let
@@ -18,7 +16,7 @@
       pkgs = import nixpkgs {
         inherit system;
         inherit config;
-        overlays = nixpkgs.lib.attrValues jupyterWith.overlays ++ [ self.overlay ];
+        overlays = [ self.overlay ];
       };
       pyenv = pkgs.python3.withPackages (p: [
         p.arviz
@@ -27,7 +25,7 @@
         p.matplotlib
         p.numpy
         p.pandas
-        p.pymc3
+        p.pymc
         p.scikitlearn
         p.scipy
         p.seaborn
