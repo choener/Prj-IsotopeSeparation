@@ -12,7 +12,10 @@ az.style.use("arviz-darkgrid")
 # The holy model:
 # - logistic regression on 0, 30, 100 % deuterium; i.e 0; 0.3; 1.0
 # - individual data can be pulled up or down by the pre-median calibration
-# - deuterium ~ logistic (x - premedian * PMS)
+# - the k1med and friends provide scaling on individual data points
+# - deuterium ~ logistic (k1med * (x - premedian * PMS))
+#
+# - possibly set sigma to mad
 
 def runModel():
   coords = { 'k1': ['A','C','G','T'] }
@@ -27,4 +30,5 @@ def runModel():
     mu = pm.Normal("mu", mu=0, sigma=1)
     obs = pm.Normal("obs", mu=mu, sigma=1, observed=rng.standard_normal(100))
     print(model.basic_RVs)
-    pass
+    ll = pm.Deterministic("ll", pm.invlogit(xs), observed = deuteriumProb)
+
