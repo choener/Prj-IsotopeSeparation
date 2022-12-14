@@ -101,7 +101,7 @@ def fast5Handler (fname, accumulator, maxCnt = None):
     segmented = segmentSignal(sufRaw,moveTable(fast5,r))
     nucs = nucleotides(fast5,r)
     rid = r.split('read_')[1]
-    l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):6d} sufRaw: {len(sufRaw):6d} nucs: {len(nucs):6d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
+    l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):5d} sufRaw: {len(sufRaw):7d} nucs: {len(nucs):7d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
     accumulator.insRead(preRaw, segmented, nucs, rid)
   fast5.close()
   return accumulator, i
@@ -121,7 +121,7 @@ def fast5ReadData(fname, r, i = 0, numKeys = 0):
   segmented = segmentSignal(sufRaw,moveTable(fast5,r))
   nucs = nucleotides(fast5,r)
   rid = r.split('read_')[1]
-  l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):6d} sufRaw: {len(sufRaw):6d} nucs: {len(nucs):6d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
+  l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):5d} sufRaw: {len(sufRaw):7d} nucs: {len(nucs):7d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
   fast5.close()
   return preRaw, segmented, nucs
 

@@ -11,6 +11,7 @@ import pandas as pandas
 import pymc as mc
 
 import Construct
+import Log
 
 font = { 'size': 10 }
 #font = { 'weight': 'bold', 'size': 10 }
@@ -61,6 +62,7 @@ def main ():
     construct.summaryStats.postFile(args.outputs)
   # TODO create data frame
   # TODO run stats model
+  Log.runModel()
 
 
 
