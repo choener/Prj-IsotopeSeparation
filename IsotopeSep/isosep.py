@@ -62,7 +62,7 @@ def main ():
     construct.summaryStats.postFile(args.outputs)
   # TODO create data frame
   # TODO run stats model
-  Log.runModel()
+  Log.runModel(construct.summaryStats)
 
 
 

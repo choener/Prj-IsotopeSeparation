@@ -256,7 +256,7 @@ def labelFromRId(labels, ridd):
   rid = ridd.removeprefix('read_')
   for k,v in labels.items():
     if rid in v:
-      return k
+      return (float(k) / 100)
   return -1
 
 # Take the full information for reads and generates summary statistics
