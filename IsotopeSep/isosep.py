@@ -31,6 +31,7 @@ def main ():
   parser.add_argument('--outputs', default="tmp", help='where to write output and pickle data to')
   parser.add_argument('--reads', action='append', help='directories where reads are located')
   parser.add_argument('--plots', default=False, action='store_true', help='actually run plots')
+  parser.add_argument('--kmer', default='k1', help='k-mer length: k1, k3, k5 are legal')
   args = parser.parse_args()
   #
   # fill infrastructure for data
@@ -62,7 +63,7 @@ def main ():
     construct.summaryStats.postFile(args.outputs)
   # TODO create data frame
   # TODO run stats model
-  Log.runModel(construct.summaryStats)
+  Log.runModel(construct.summaryStats, kmer = args.kmer)
 
 
 
