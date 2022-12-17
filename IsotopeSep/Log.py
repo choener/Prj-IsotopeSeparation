@@ -85,9 +85,14 @@ def runModel(stats : SummaryStats, kmer):
     kMedians = pm.MutableData("kMedians", np.array(kMedians))
     kScale = pm.Normal(kmer + 'Scale', 0, 1, dims='kmer')
 
-    rowSum = np.zeros(shape=len(pcnt))
-    for i,n in enumerate(coords[kmer]):
-      rowSum += kScale[kmer2int(n)] * kMedians[:,kmer2int(n)]
+    print(kScale.shape)
+    print(kMedians.get_value().shape)
+
+    #rowSum = np.zeros(shape=len(pcnt))
+    #for i,n in enumerate(coords[kmer]):
+    #  rowSum += kScale[kmer2int(n)] * kMedians[:,kmer2int(n)]
+
+    rowSum = pm.math.dot(kMedians, kScale)
 
     #k1 = pm.Normal('k1Scale', 0, 1, dims='k1')
     #k3 = pm.Normal('k3Scale', 0, 1, dims='k3')
@@ -104,13 +109,13 @@ def runModel(stats : SummaryStats, kmer):
     #  rowSum5 += k5[kmer2int(n)] * k5Medians[:,kmer2int(n)]
 
     intercept = pm.Normal('intercept', 0, 5)
-    predpcnt = pm.math.invlogit(intercept + rowSum) # rowSum1) # + rowSum3) # + rowSum5)
+    predpcnt = pm.math.invlogit(intercept + rowSum)
 
     err = pm.HalfNormal("err",sigma=1)
 
     pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
 
-    trace = pm.sample(1000, tune=1000)
+    trace = pm.sample(1000, tune=1000, cores=1)
 
   az.plot_trace(trace,figsize=(20,20))
   plt.savefig(f'{kmer}-log-trace.jpeg')
