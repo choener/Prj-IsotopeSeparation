@@ -32,6 +32,7 @@ def main ():
   parser.add_argument('--reads', action='append', help='directories where reads are located')
   parser.add_argument('--plots', default=False, action='store_true', help='actually run plots')
   parser.add_argument('--kmer', default='k1', help='k-mer length: k1, k3, k5 are legal')
+  parser.add_argument('--disableBayes', default=False, action='store_true', help='disable Bayesian modeling, only imports reads')
   args = parser.parse_args()
   #
   # fill infrastructure for data
@@ -63,7 +64,8 @@ def main ():
     construct.summaryStats.postFile(args.outputs)
   # TODO create data frame
   # TODO run stats model
-  Log.runModel(construct.summaryStats, kmer = args.kmer)
+  if not args.disableBayes:
+    Log.runModel(construct.summaryStats, kmer = args.kmer)
 
 
 
