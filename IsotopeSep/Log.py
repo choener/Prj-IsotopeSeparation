@@ -115,7 +115,7 @@ def runModel(stats : SummaryStats, kmer):
 
     pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
 
-    trace = pm.sample(1000, tune=1000, cores=1)
+    trace = pm.sample(1000, tune=1000, cores=2)
 
   az.plot_trace(trace,figsize=(20,20))
   plt.savefig(f'{kmer}-log-trace.jpeg')
