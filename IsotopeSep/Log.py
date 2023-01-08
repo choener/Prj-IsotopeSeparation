@@ -1,9 +1,11 @@
 
 import aesara.tensor as at
 import arviz as az
+import logging as log
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
+import xarray as xr
 
 from Construct import SummaryStats, kmer2int
 
@@ -30,22 +32,31 @@ def genKcoords (k):
 
 # TODO consider normalization
 
-def runModel(stats : SummaryStats, kmer):
+def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = True, priorpredictive = True):
   assert (kmer=='k1' or kmer=='k3' or kmer=='k5')
   # explicit selection of which rows to keep around, removing all with errors and such things
   keep = []
   for i,k in enumerate(stats.label):
     l=float(k)
-    if l>=0 and l<=100 and not np.isnan(stats.preMedian[i]):
+    if l>=0 and l<=1 and not np.isnan(stats.preMedian[i]):
       keep.append(True)
     else:
       keep.append(False)
   keep = np.array(keep)
+  keepcnt = {}
+  for k in np.array(stats.label)[keep]:
+    keepcnt[k] = keepcnt.get(k, 0) + 1
+  log.info(f'counts in stats: {keepcnt}')
+  #
+  # TODO select the min(keepcnt), then split keep into classes, for each class draw min(keepcnt)
+  # elements
+  #
+
   #
   # prepare data based on what to keep
   #
   # percent deuterium
-  pcnt = np.array([float(x) / 100.0 for x in stats.label])[keep]
+  pcnt = np.array([float(x) / 1.0 for x in stats.label])[keep]
   preMedian = np.array(stats.preMedian)[keep] # ,ndmin=2).T[keep]
   k1Medians = np.array(stats.k1Medians)[keep]
   k3Medians = np.array(stats.k3Medians)[keep]
@@ -78,47 +89,66 @@ def runModel(stats : SummaryStats, kmer):
     # data we want to be able to swap for posterior predictive
     # access via get_value() / set_value()
     preMedian = pm.MutableData("preMedian", preMedian)
-    #k1Medians = pm.MutableData("k1Medians", np.array(k1Medians))
-    #k3Medians = pm.MutableData("k3Medians", np.array(k3Medians))
-    #k5Medians = pm.MutableData("k5Medians", np.array(k5Medians))
+    kMedians  = pm.MutableData("kMedians", np.array(kMedians))
 
-    kMedians = pm.MutableData("kMedians", np.array(kMedians))
-    kScale = pm.Normal(kmer + 'Scale', 0, 1, dims='kmer')
-
-    print(kScale.shape)
-    print(kMedians.get_value().shape)
-
-    #rowSum = np.zeros(shape=len(pcnt))
-    #for i,n in enumerate(coords[kmer]):
-    #  rowSum += kScale[kmer2int(n)] * kMedians[:,kmer2int(n)]
-
-    rowSum = pm.math.dot(kMedians, kScale)
-
-    #k1 = pm.Normal('k1Scale', 0, 1, dims='k1')
-    #k3 = pm.Normal('k3Scale', 0, 1, dims='k3')
-    #k5 = pm.Normal('k5Scale', 0, 1, dims='k5')
-
-    #rowSum1 = np.zeros(shape=(len(pcnt)))
-    #for i,n in enumerate(coords['k1']):
-    #  rowSum1 += k1[kmer2int(n)] * k1Medians[:,kmer2int(n)]
-    #rowSum3 = np.zeros(shape=(len(pcnt)))
-    #for i,n in enumerate(coords['k3']):
-    #  rowSum3 += k3[kmer2int(n)] * k3Medians[:,kmer2int(n)]
-    #rowSum5 = np.zeros(shape=(len(pcnt)))
-    #for i,n in enumerate(coords['k5']):
-    #  rowSum5 += k5[kmer2int(n)] * k5Medians[:,kmer2int(n)]
-
+    kScale    = pm.Normal('Scale'+kmer, 0, 1, dims='kmer')
     intercept = pm.Normal('intercept', 0, 5)
-    predpcnt = pm.math.invlogit(intercept + rowSum)
+    err       = pm.HalfNormal("err",sigma=1)
 
-    err = pm.HalfNormal("err",sigma=1)
+    rowSum    = pm.Deterministic('logit(p)', pm.math.dot(kMedians, kScale))
+    predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
+
+    log.info(f'{kMedians.get_value().shape}')
+    log.info(f'{kScale.shape}')
 
     pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
 
-    trace = pm.sample(1000, tune=1000, cores=2)
+  # prior predictive checks needs to be written down still
+  if priorpredictive:
+    pass
+    #with model:
+    #  log.info('running prior predictive model')
+    #  trace = pm.sample_prior_predictive()
+    #  _, ax = plt.subplots()
+    #  x = xr.DataArray(np.linspace(-5,5,10), dims=["plot_dim"])
+    #  prior = trace.prior
+    #  ax.plot(x, x)
+    #  plt.savefig(f'{kmer}-prior-predictive.jpeg')
+    #  plt.close()
 
-  az.plot_trace(trace,figsize=(20,20))
-  plt.savefig(f'{kmer}-log-trace.jpeg')
+  trace = az.InferenceData()
+  if train:
+    with model:
+      log.info('training model')
+      trace = pm.sample(1000, return_inferencedata=True, tune=1000, cores=2)
+      trace.to_netcdf(f'{kmer}-trace.netcdf')
+      az.plot_trace(trace,figsize=(20,20))
+      loglvl = log.getLogger().getEffectiveLevel()
+      log.getLogger().setLevel(log.DEBUG)
+      plt.savefig(f'{kmer}-trace.jpeg')
+      log.getLogger().setLevel(loglvl)
+      plt.close()
+      az.summary(trace, var_names=['intercept', 'Scale'+kmer], round_to=2)
+      # TODO pickle the trace
+  else:
+    # TODO possibly load model
+    trace.from_netcdf(f'{kmer}-trace.netcdf')
+    pass
+
+  if posteriorpredictive:
+    with model:
+      log.info('posterior predictive run')
+      assert trace is not None
+      # Normally, we should now go and set new data via
+      # pm.set_data({"pred": out-of-sample-data})
+      # but we hope to be able to pickle the trace and then data will naturally be set.
+      pm.sample_posterior_predictive(trace, return_inferencedata=True, extend_inferencedata=True)
+      az.plot_ppc(trace, num_pp_samples = 100)
+      loglvl = log.getLogger().getEffectiveLevel()
+      log.getLogger().setLevel(log.DEBUG)
+      plt.savefig(f'{kmer}-posterior-predictive.jpeg')
+      log.getLogger().setLevel(loglvl)
+      plt.close()
 
 
 #    # k1Medians, but pulled down, pull-down scale depends on "pms"

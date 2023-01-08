@@ -28,10 +28,11 @@ def main ():
   parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')
   parser.add_argument('--outputdir', default="tmp", help='where to write output and pickle data to')
   parser.add_argument('--pickledreads', action='append', help='directories where read pickles are located, or individual read pickles')
-  parser.add_argument('--plots', default=False, action='store_true', help='actually run plots')
+  parser.add_argument('--dataplots', default=False, action='store_true', help='actually run plots')
   parser.add_argument('--kmer', default='k1', help='k-mer length: k1, k3, k5 are legal')
-  parser.add_argument('--trainbayes', default=False, action='store_true', help='enable Bayesian training')
-  parser.add_argument('--predictbayes', default=False, action='store_true', help='enable Bayesian posterior predictive')
+  parser.add_argument('--train', default=False, action='store_true', help='enable Bayesian training')
+  parser.add_argument('--posteriorpredictive', default=False, action='store_true', help='enable Bayesian posterior predictive')
+  parser.add_argument('--priorpredictive', default=False, action='store_true', help='Prior predictive')
   args = parser.parse_args()
   # checks
   if args.barcode is None:
@@ -65,15 +66,16 @@ def main ():
         construct.merge(loaded)
 
   log.info(f'Model loaded with {len(construct)} reads')
-  if (args.plots):
+  if (args.dataplots):
     assert(construct.summaryStats is not None)
     construct.summaryStats.postFile(args.outputdir)
-  if args.trainbayes:
+  if args.train:
     assert(construct.summaryStats is not None)
-    Log.runModel(construct.summaryStats, kmer = args.kmer)
-  if args.predictbayes:
+  if args.posteriorpredictive:
     assert(construct.summaryStats is not None)
-    # TODO Log.runModel, but with Bayesian posterior predictives
+  if args.train or args.posteriorpredictive or args.priorpredictive:
+    assert(construct.summaryStats is not None)
+    Log.runModel(construct.summaryStats, kmer = args.kmer, train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive)
 
 
 
