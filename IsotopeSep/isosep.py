@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-from os.path import exists
-from pathlib import Path
+from os.path import exists, isdir, isfile
 import argparse
 import logging
 import logging as log
 import matplotlib as pl
-import os
 import pandas as pandas
 import pymc as mc
+from pathlib import Path
+#import jax
+#import jaxlib
 
 import Construct
 import Log
@@ -27,59 +28,60 @@ def main ():
   logging.info(f'PyMC v{mc.__version__}')
   parser = argparse.ArgumentParser()
   parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')
-  parser.add_argument('--limitreads', help='Limit the number of reads to read when no pickle exists')
-  parser.add_argument('--outputs', default="tmp", help='where to write output and pickle data to')
-  parser.add_argument('--reads', action='append', help='directories where reads are located, or single read')
-  parser.add_argument('--plots', default=False, action='store_true', help='actually run plots')
+  parser.add_argument('--outputdir', default="tmp", help='where to write output and pickle data to')
+  parser.add_argument('--pickledreads', action='append', help='directories where read pickles are located, or individual read pickles')
+  parser.add_argument('--dataplots', default=False, action='store_true', help='actually run plots')
   parser.add_argument('--kmer', default='k1', help='k-mer length: k1, k3, k5 are legal')
-  parser.add_argument('--disableBayes', default=False, action='store_true', help='disable Bayesian modeling, only imports reads')
-  parser.add_argument('--sideloadPickle', action='append', help='will import pickle files')
-  parser.add_argument('--picklePath', default='construct.pickle')
+  parser.add_argument('--train', default=False, action='store_true', help='enable Bayesian training')
+  parser.add_argument('--posteriorpredictive', default=False, action='store_true', help='enable Bayesian posterior predictive')
+  parser.add_argument('--priorpredictive', default=False, action='store_true', help='Prior predictive')
   args = parser.parse_args()
-  #
-  # fill infrastructure for data
-  if not exists (args.outputs):
-    os.mkdir(args.outputs)
+  # checks
+  if args.barcode is None:
+    log.error('no barcodes given')
+    exit(0)
+  for _, bc in args.barcode:
+    if not exists(bc):
+      log.error('{bc} does not exist')
+  if not exists (args.outputdir):
+    log.error(f'output directory "{args.outputdir}" does not exist')
+    exit(0)
+  if args.pickledreads is None:
+    log.error('no pickled reads given')
+    exit(0)
+  # prepare construct
   construct = Construct.Construct(barcodes = args.barcode)
-  # check if we have something to load, if so do that
-  picklePath = os.path.join(args.outputs, args.picklePath)
-  if exists(picklePath):
-    loaded = Construct.Construct.load(picklePath)
-    construct.merge(loaded)
-  # if there is a multitude of pickles, then load those
-  if args.sideloadPickle is not None:
-    for p in Path(args.sideloadPickle).rglob(f'*.pickle'):
-      construct.merge(p)
-  totReads = 0
-  limitReads = int(args.limitreads)
-  # Extract and process reads from files. Will save the current construct after every read. Should
-  # be safe to Ctrl-C out of.
-  for path in args.reads:
-    log.info(f'READ PATH: {path}')
-    if os.path.isfile(path):
-      log.info(f'FILE PATH" {path}')
-      cnt = construct.handleReadFile(path, limitReads)
-      totReads += cnt
-      construct.save(picklePath)
-    for rname in Path(path).rglob(f'*.fast5'):
-      if args.limitreads is not None and totReads >= limitReads:
-        break
-      log.info(f'FILE PATH" {rname}')
-      cnt = construct.handleReadFile(rname, limitReads)
-      totReads += cnt
-      construct.save(picklePath)
+  # loads all pickles
+  # is directory
+  # TODO
+  for p in args.pickledreads:
+    log.info(f'PATH" {p}')
+    if isfile(p):
+      log.info(f'FILE PATH" {p}')
+      loaded = Construct.Construct.load(p)
+      construct.merge(loaded)
+    if isdir(p):
+      log.info(f'DIRECTORY PATH" {p}')
+      for rname in Path(p).rglob(f'*.pickle'):
+        log.info(f'FILE PATH" {rname}')
+        loaded = Construct.Construct.load(rname)
+        construct.merge(loaded)
+
   log.info(f'Model loaded with {len(construct)} reads')
-  if (args.plots):
+  if (args.dataplots):
     assert(construct.summaryStats is not None)
-    construct.summaryStats.postFile(args.outputs)
-  # TODO create data frame
-  # TODO run stats model
-  if not args.disableBayes:
+    construct.summaryStats.postFile(args.outputdir)
+  if args.train:
     assert(construct.summaryStats is not None)
-    Log.runModel(construct.summaryStats, kmer = args.kmer)
+  if args.posteriorpredictive:
+    assert(construct.summaryStats is not None)
+  if args.train or args.posteriorpredictive or args.priorpredictive:
+    assert(construct.summaryStats is not None)
+    Log.runModel(construct.summaryStats, kmer = args.kmer, train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive)
 
 
 
 if __name__ == "__main__":
+  #jax.default_backend()
   main()
 
