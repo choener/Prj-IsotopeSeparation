@@ -24,7 +24,7 @@ pl.rc('font', **font)
 
 def main ():
   FORMAT = '%(asctime)s %(message)s'
-  logging.basicConfig(format=FORMAT, level=logging.DEBUG)
+  logging.basicConfig(format=FORMAT, level=logging.DEBUG, filename='isosep.log', filemode='a')
   logging.info(f'PyMC v{mc.__version__}')
   parser = argparse.ArgumentParser()
   parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')

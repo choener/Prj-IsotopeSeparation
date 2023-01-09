@@ -9,7 +9,7 @@ import pymc as pm
 import xarray as xr
 from random import shuffle
 
-from Construct import SummaryStats, kmer2int
+from Construct import SummaryStats
 
 RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
@@ -158,30 +158,32 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
       trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
       trace.to_netcdf(f'{kmer}-trace.netcdf')
 
-      # plot only subset?
-      az.plot_trace(trace,figsize=(20,20),compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
-      plt.savefig(f'{kmer}-trace.jpeg')
-      plt.close()
-      az.plot_forest(trace, figsize=(20,20), var_names=['~p'])
-      plt.savefig(f'{kmer}-forest.jpeg')
-      plt.close()
-
-      az.summary(trace, var_names=['intercept', 'scale'+kmer], round_to=2)
       # TODO pickle the trace
   else:
     # TODO possibly load model
     trace = trace.from_netcdf(f'{kmer}-trace.netcdf')
     pass
+  # create plot(s); later guard via switch
+  if True:
+    # plot only subset?
+    az.plot_trace(trace,figsize=(20,20),compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
+    plt.savefig(f'{kmer}-trace.png')
+    plt.close()
+    az.plot_forest(trace, var_names=['~p'])
+    plt.savefig(f'{kmer}-forest.png')
+    plt.close()
+    print(az.summary(trace, var_names=['intercept', 'scale'+kmer], round_to=2))
+
   # plot the posterior, should be quite fast
   # TODO only plots subset of figures, if there are too many subfigures
   log.info(f'plotting posterior distributions')
   #g = kMedians.get_value().shape[1]
   #g = 1 + int(np.sqrt(g+2))
   az.plot_posterior(trace,figsize=(10,5), var_names=['intercept', 'preScale']) # , grid=(g,g))
-  plt.savefig(f'{kmer}-posterior.jpeg')
+  plt.savefig(f'{kmer}-posterior.png')
   plt.close()
   az.plot_posterior(trace,figsize=(100,100), var_names=['scale'+kmer]) # , grid=(g,g))
-  plt.savefig(f'{kmer}-posterior-all.jpeg')
+  plt.savefig(f'{kmer}-posterior-all.png')
   plt.close()
 
   if posteriorpredictive:
@@ -209,7 +211,7 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
       ax.plot(mppmean - mppstd, color='blue')
       ax.plot(obs, 'o')
       # actual
-      plt.savefig(f'{kmer}-poos.jpeg')
+      plt.savefig(f'{kmer}-poos.png')
       plt.close()
       # finally draw for each element, how good the prediction went.
       # TODO should have multiple lines, depending on 0%, 100%, etc
@@ -223,8 +225,12 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
       plt.axhline(y=0.5, color='black', linestyle='-')
       plt.axvline(x=len(lastgoodaom), color='black', linestyle='-')
       plt.annotate(f'{len(lastgoodaom) / len(pcnt):.2f}', xy=(len(lastgoodaom),0.9))
+      ax.set_xlabel('Samples (ordered)')
+      ax.set_ylabel('Prediction Error')
+      ax.set_title('Posterior Predictive Error (per sample)')
+      ax.legend(fontsize=10, frameon=True, framealpha=0.5)
       # TODO vertical line that is annotated with percentage "good"
-      plt.savefig(f'{kmer}-order-qos.jpeg')
+      plt.savefig(f'{kmer}-order-qos.png')
       plt.close()
 
 
