@@ -8,6 +8,8 @@ import matplotlib as pl
 import pandas as pandas
 import pymc as mc
 from pathlib import Path
+#import jax
+#import jaxlib
 
 import Construct
 import Log
@@ -80,5 +82,6 @@ def main ():
 
 
 if __name__ == "__main__":
+  #jax.default_backend()
   main()
 
