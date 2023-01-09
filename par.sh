@@ -13,7 +13,7 @@ go() {
     --outputs fullrun \
     --disableBayes \
     --picklePath $P \
-    --limitreads 10
+    --limitreads 10000
 }
 
 export -f go
