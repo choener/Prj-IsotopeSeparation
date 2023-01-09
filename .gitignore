@@ -1,5 +1,8 @@
 # own crap
 taubert-d2o/reads
+*.jpeg
+*.netcdf
+*.csv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
