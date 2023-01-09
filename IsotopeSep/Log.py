@@ -166,11 +166,13 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
   # create plot(s); later guard via switch
   if True:
     # plot only subset?
-    az.plot_trace(trace,figsize=(20,20),compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
+    az.plot_trace(trace, compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
     plt.savefig(f'{kmer}-trace.png')
+    plt.savefig(f'{kmer}-trace.pdf')
     plt.close()
     az.plot_forest(trace, var_names=['~p'])
     plt.savefig(f'{kmer}-forest.png')
+    plt.savefig(f'{kmer}-forest.pdf')
     plt.close()
     print(az.summary(trace, var_names=['intercept', 'scale'+kmer], round_to=2))
 
@@ -179,11 +181,13 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
   log.info(f'plotting posterior distributions')
   #g = kMedians.get_value().shape[1]
   #g = 1 + int(np.sqrt(g+2))
-  az.plot_posterior(trace,figsize=(10,5), var_names=['intercept', 'preScale']) # , grid=(g,g))
+  az.plot_posterior(trace, var_names=['intercept', 'preScale']) # , grid=(g,g))
   plt.savefig(f'{kmer}-posterior.png')
+  plt.savefig(f'{kmer}-posterior.pdf')
   plt.close()
-  az.plot_posterior(trace,figsize=(100,100), var_names=['scale'+kmer]) # , grid=(g,g))
+  az.plot_posterior(trace, var_names=['scale'+kmer]) # , grid=(g,g))
   plt.savefig(f'{kmer}-posterior-all.png')
+  plt.savefig(f'{kmer}-posterior-all.pdf')
   plt.close()
 
   if posteriorpredictive:
@@ -211,26 +215,43 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
       ax.plot(mppmean - mppstd, color='blue')
       ax.plot(obs, 'o')
       # actual
+      ax.set_xlabel('Samples (ordered)')
+      ax.set_ylabel('Prediction Error')
+      ax.set_title('Posterior Predictive Error (±σ)')
+      ax.legend(fontsize=10, frameon=True, framealpha=0.5)
       plt.savefig(f'{kmer}-poos.png')
+      plt.savefig(f'{kmer}-poos.pdf')
       plt.close()
       # finally draw for each element, how good the prediction went.
       # TODO should have multiple lines, depending on 0%, 100%, etc
-      aom = (abs(obs - mppmean))
-      aom = aom.sortby(aom)
-      lastgoodaom = aom.where(lambda x: x < 0.5, drop=True)
-      print(len(lastgoodaom))
+      # positive: 0% with their errors
+      # negative: 100% with their negated errors
+      aom = (mppmean-obs)
+      p0 = aom.where(lambda x: x >= 0, drop=True)
+      p0 = p0.sortby(p0)
+      p0good = len(p0.where(lambda x: x < 0.5, drop=True))
+      p1 = abs(aom.where(lambda x: x <  0, drop=True))
+      p1 = p1.sortby(p1)
+      p1good = len(p1.where(lambda x: x < 0.5, drop=True))
+      #aom = aom.sortby(aom)
+      #lastgoodaom = aom.where(lambda x: x < 0.5, drop=True)
+      #print(len(lastgoodaom))
       _, ax = plt.subplots(figsize=(12, 6))
-      ax.plot(aom)
-      # horizontal line at error 0.5
       plt.axhline(y=0.5, color='black', linestyle='-')
-      plt.axvline(x=len(lastgoodaom), color='black', linestyle='-')
-      plt.annotate(f'{len(lastgoodaom) / len(pcnt):.2f}', xy=(len(lastgoodaom),0.9))
+      ax.plot(p0, color='orange', label='0% D2O')
+      plt.axvline(x=p0good, color='orange', linestyle='solid')
+      plt.annotate(f'{p0good / len(p0):.2f}', xy=(p0good,0.6), color='orange')
+      ax.plot(p1, color='blue', label='100% D2O')
+      plt.axvline(x=p1good, color='blue', linestyle='dashed')
+      plt.annotate(f'{p1good / len(p1):.2f}', xy=(p1good,0.4), color='blue')
+      # horizontal line at error 0.5
       ax.set_xlabel('Samples (ordered)')
       ax.set_ylabel('Prediction Error')
       ax.set_title('Posterior Predictive Error (per sample)')
       ax.legend(fontsize=10, frameon=True, framealpha=0.5)
       # TODO vertical line that is annotated with percentage "good"
       plt.savefig(f'{kmer}-order-qos.png')
+      plt.savefig(f'{kmer}-order-qos.pdf')
       plt.close()
 
 
