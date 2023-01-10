@@ -1,20 +1,23 @@
 
-import aesara.tensor as at
+from random import shuffle
+from scipy import stats
 import aesara
+import aesara.tensor as at
 import arviz as az
 import logging as log
 import matplotlib.pyplot as plt
 import numpy as np
 import pymc as pm
+import scipy
 import xarray as xr
-from random import shuffle
 
+import Stats
 from Construct import SummaryStats
 
 RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
-az.rcParams["plot.max_subplots"] = 200
+az.rcParams["plot.max_subplots"] = 1000
 #aesara.config.profile = True
 
 def genKcoords (k):
@@ -77,38 +80,60 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
   #
   # percent deuterium
   pcnt = np.array([float(x) / 1.0 for x in stats.label])[keep]
-  # N (vector)
+  # preMedian holds the median pA for adapter, etc; N (vector)
   preMedian = np.array(stats.preMedian)[keep] # ,ndmin=2).T[keep]
-  # Nx4^1
+  # medians, for the 1,3,5-mers; Nx4^k
   k1Medians = np.array(stats.k1Medians)[keep]
-  # Nx4^3
   k3Medians = np.array(stats.k3Medians)[keep]
-  # Nx4^5
   k5Medians = np.array(stats.k5Medians)[keep]
-  # rescale
-  k1mean = np.mean(k1Medians)
-  k1var  = np.std(k1Medians)
-  k3mean = np.mean(k3Medians)
-  k3var  = np.std(k3Medians)
+  # median absolute deviations
+  k3Mads = np.array(stats.k3Mads)[keep]
+  k3Len  = np.array(stats.k3LenMean)[keep]
+  # rescale values, based on k5 measurements
   k5mean = np.mean(k5Medians)
-  k5var  = np.std(k5Medians)
-  # global pulldown
-  preMedian = preMedian - k5mean
-  k1Medians = k1Medians - k5mean # - preMedian.reshape(-1,1) # (k1Medians - k1mean) / k1var
-  k3Medians = k3Medians - k5mean #(k3Medians - k3mean) / k3var
-  k5Medians = k5Medians - k5mean #(k5Medians - k5mean) / k5var
-  # for generic model
+  k5std  = np.std(k5Medians)
+  # rescaling of different measurements
+  preMedian = (preMedian - k5mean) / k5std
+  k1Medians = (k1Medians - k5mean) / k5std
+  k3Medians = (k3Medians - k5mean) / k5std
+  k5Medians = (k5Medians - k5mean) / k5std
+  # build up the actual model
   kMedians = None
-  kLen = None
+  kMads = None
   if kmer=='k1':
     kMedians = k1Medians
-    kLen = np.array(stats.k1LenMean)[keep]
   elif kmer=='k3':
     kMedians = k3Medians
-    kLen = np.array(stats.k3LenMean)[keep]
+    # k3mads
+    tmp = k3Mads.flatten()
+    tmp[tmp == 0] = np.median(tmp[tmp>0])
+    # TODO better plots, separating out the classes!
+    _, ax = plt.subplots(figsize=(12, 6))
+    az.plot_kde(tmp, label='MAD '+kmer, bw='scott', plot_kwargs={'color':'black'})
+    kMads, lmbd = scipy.stats.boxcox(tmp)
+    kMads = (kMads - np.mean(kMads)) / np.std(kMads)
+    az.plot_kde(kMads, label=f'BoxCox, λ={lmbd :.2f}', bw='scott', plot_kwargs={'color':'blue'})
+    ax.legend(fontsize=10, frameon=True, framealpha=0.5)
+    plt.xlim(left=-5, right=10)
+    plt.savefig(f'{kmer}-kmads.png')
+    plt.savefig(f'{kmer}-kmads.pdf')
+    plt.close()
+    kMads = kMads.reshape(-1,64)
+    # k3len
+    tmp = k3Len.flatten()
+    tmp[tmp == 0] = np.median(tmp[tmp>0])
+    _, ax = plt.subplots(figsize=(12, 6))
+    az.plot_kde(tmp)
+    kLen, lmbd = scipy.stats.boxcox(tmp)
+    kLen = (kLen - np.median(kLen)) / np.std(kLen)
+    az.plot_kde(kLen)
+    plt.xlim(left=-5, right=20)
+    plt.savefig(f'{kmer}-klen.png')
+    plt.savefig(f'{kmer}-klen.pdf')
+    plt.close()
+    kLen = kLen.reshape(-1,64)
   elif kmer=='k5':
     kMedians = k5Medians
-    kLen = np.array(stats.k3LenMean)[keep]
   # prepare coords
   coords = { 'k1': genKcoords(1)
            , 'k3': genKcoords(3)
@@ -123,13 +148,15 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
     # access via get_value() / set_value()
     preMedian = pm.MutableData("preMedian", preMedian.reshape(-1,1))
     kMedians  = pm.MutableData("kMedians", np.array(kMedians))
+    kMads     = pm.MutableData('kMads', np.array(kMads))
 
     pScale    = pm.Beta('preScale', 0.5, 0.5)
-    kScale    = pm.Normal('scale'+kmer, 0, 10, dims='kmer')
+    kScale    = pm.Normal('scale'+kmer, 0, 1, dims='kmer')
+    mScale    = pm.Normal('mad'+kmer, 0, 1, dims='kmer')
     intercept = pm.Normal('intercept', 0, 10)
-    #err       = pm.HalfNormal("err",sigma=1)
 
-    rowSum    = pm.math.dot(kMedians - pScale * preMedian, kScale)
+    rowSum    =  pm.math.dot(kMedians - pScale * preMedian, kScale)
+    rowSum    += pm.math.dot(kMads, mScale)
     predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
 
     log.info(f'{kMedians.get_value().shape}')
@@ -174,7 +201,7 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
     plt.savefig(f'{kmer}-forest.png')
     plt.savefig(f'{kmer}-forest.pdf')
     plt.close()
-    print(az.summary(trace, var_names=['intercept', 'scale'+kmer], round_to=2))
+    print(az.summary(trace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
   # TODO only plots subset of figures, if there are too many subfigures
@@ -185,7 +212,7 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
   plt.savefig(f'{kmer}-posterior.png')
   plt.savefig(f'{kmer}-posterior.pdf')
   plt.close()
-  az.plot_posterior(trace, var_names=['scale'+kmer]) # , grid=(g,g))
+  az.plot_posterior(trace, var_names=['~p', '~intercept', '~preScale'])
   plt.savefig(f'{kmer}-posterior-all.png')
   plt.savefig(f'{kmer}-posterior-all.pdf')
   plt.close()
@@ -253,5 +280,4 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
       plt.savefig(f'{kmer}-order-qos.png')
       plt.savefig(f'{kmer}-order-qos.pdf')
       plt.close()
-
 
