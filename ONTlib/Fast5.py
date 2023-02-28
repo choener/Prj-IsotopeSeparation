@@ -1,5 +1,5 @@
 
-# Fast5 handling methods
+# Fast5 handling methods and accumulator functions for streamlined statistics.
 
 import abc
 import h5py
@@ -145,7 +145,6 @@ class Fast5Accumulator(metaclass=abc.ABCMeta):
   @abc.abstractmethod
   def merge(self, other):
     sys.exit("ERROR: merge has not been implemented")
-    pass
 
 
 
