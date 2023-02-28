@@ -6,9 +6,10 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/master";
     flake-utils.url = "github:numtide/flake-utils";
+    devshell.url = "github:numtide/devshell";
   };
 
-  outputs = { self, nixpkgs, flake-utils }: let
+  outputs = { self, nixpkgs, flake-utils, devshell }: let
 
     # each system
     eachSystem = system: let
@@ -16,7 +17,7 @@
       pkgs = import nixpkgs {
         inherit system;
         inherit config;
-        overlays = [ self.overlay ];
+        overlays = [ self.overlay devshell.overlays.default ];
       };
       pyenv = pkgs.python3.withPackages (p: [
         p.arviz
@@ -34,14 +35,17 @@
       ]);
 
     in rec {
-      devShell = pkgs.mkShell {
-        buildInputs = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs ]; # cudatoolkit
-        HDF5_PLUGIN_PATH = "${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib";
-        PYTHONPATH = "./IsotopeSep";
-        # disable *within-process* multithreading, because nuts tends to hang
-        MKL_NUM_THREADS = 1;
-        OMP_NUM_THREADS = 1;
-        name = "dev-shell";
+      devShell = let
+        # pkgs = import nixpkgs { inherit system; overlays = [ devshell.overlay ]; };
+      in pkgs.devshell.mkShell {
+        devshell.packages = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs ]; # cudatoolkit
+        env = [
+          { name = "HDF5_PLUGIN_PATH"; value = "${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib"; }
+          { name = "PYTHONPATH"; eval = "$PRJ_ROOT/ONTlib:$PRJ_ROOT/IsotopeSep"; }
+          { name = "MKL_NUM_THREADS"; value = 1; }
+          { name = "OMP_NUM_THREADS"; value = 1; }
+        ];
+        imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
       };
       packages."vbz" = pkgs.ont_vbz_compression;
     }; # eachSystem
