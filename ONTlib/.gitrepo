@@ -6,7 +6,7 @@
 [subrepo]
 	remote = git@github.com:choener/ONTlib.git
 	branch = master
-	commit = aae5f3ffb3b8cd65918ff6c1e9d4e986555b9ce8
-	parent = 2f2181a082bac2da77ada6f1d952e3b8bac40952
+	commit = ff0d44c28707f4665ea8b9642ca321a303129b9f
+	parent = 73588ca45790fb2ebdfccee515821733ca938b8c
 	method = merge
 	cmdver = 0.4.5

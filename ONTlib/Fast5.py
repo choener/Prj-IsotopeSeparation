@@ -114,16 +114,41 @@ def fast5Reads(fname):
   fast5.close()
   return ks
 
-def fast5ReadData(fname, r, i = 0, numKeys = 0):
+def fast5ReadRaw(fname, r):
+  fast5 = h5py.File(fname, 'r')
+  raw = undigitise(fast5,r, rawSignal(fast5,r))
+  return raw
+
+"""
+"""
+
+def fast5ReadPreSuf(fname, r):
   fast5 = h5py.File(fname, 'r')
   raw = undigitise(fast5,r, rawSignal(fast5,r))
   (preRaw,sufRaw) = splitRawSignal(fast5,r,raw)
+  return preRaw, sufRaw
+
+"""
+  Given filename and read id, returns ONT signal
+  - prefix in raw
+  - suffix in raw
+  - segmented suffix in raw
+  - nucleotides
+
+  If segments and nucleotides are not needed, fast5ReadPreSuf is much faster!
+"""
+
+def fast5ReadData(fname, r, i = 0, numKeys = 0):
+  fast5 = h5py.File(fname, 'r')
+  #raw = undigitise(fast5,r, rawSignal(fast5,r))
+  #(preRaw,sufRaw) = splitRawSignal(fast5,r,raw)
+  preRaw, sufRaw = fast5ReadPreSuf(fname, r)
   segmented = segmentSignal(sufRaw,moveTable(fast5,r))
   nucs = nucleotides(fast5,r)
   rid = r.split('read_')[1]
   l.info(f' {i:4d}/{numKeys:4d} RID: {rid} preS: {len(preRaw):5d} sufRaw: {len(sufRaw):7d} nucs: {len(nucs):7d}   s/n: {len(sufRaw)/len(nucs):5.1f}')
   fast5.close()
-  return preRaw, segmented, nucs
+  return preRaw, sufRaw, segmented, nucs
 
 
 # Generic accumulators for statistics
