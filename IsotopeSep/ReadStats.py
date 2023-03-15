@@ -15,33 +15,30 @@ import Stats
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--outfile', help='csv with the output data. defaults to input with csv suffix')
+parser.add_argument('--outdir', help='csv with the output data. defaults to input with csv suffix')
 parser.add_argument('input', nargs=1)
 
 args = parser.parse_args()
 
 infname = args.input[0]
-outfname = infname
-outfname = os.path.basename(outfname)
-outfname = os.path.splitext(outfname)[0]
-if args.outfile is not None:
-  outfname = args.outfile
+outdir = infname
+outdir = os.path.basename(outdir)
+outdir = os.path.splitext(outdir)[0]
+if args.outdir is not None:
+  outdir = args.outdir
 
-if infname == outfname:
-  print(f'{infname} and {outfname} are the same file, aborting')
+if infname == outdir:
+  print(f'{infname} and {outdir} are the same file, aborting')
   exit(1)
 
-# append to existing csv?
-if os.path.exists(outfname):
-  print(f'{outfname} already exists')
-  exit(0)
+os.makedirs(outdir, exist_ok=True)
 
-print(infname)
-print(outfname)
+readsfile = ""
 
-kmers = []
 summs = []
 reads = pd.DataFrame()
+if os.path.exists(readsfile):
+  pd.read_csv(readsfile)
 
 eachRead = []
 
@@ -54,9 +51,7 @@ def appendKx(eackK, r, readpd, kx):
 
 readIDs = Fast5.fast5Reads(infname)
 numR = len(readIDs)
-cnt = 0
-for r in readIDs:
-  cnt = cnt+1
+for cnt, r in enumerate(readIDs):
   r = sys.intern(r)
   print(f'[{cnt :5d} / {numR : 5d}] {r}')
   preRaw, sufRaw, segmented, nucs = Fast5.fast5ReadData(infname, r)
@@ -70,13 +65,13 @@ for r in readIDs:
     median, mad = Stats.medianMad(segmented[i])
     medianZ, madZ = Stats.medianMad((segmented[i]-medianR)/madR)
     eachPos.append(
-        { 'read': r
+        { 'read': cnt
         , 'k1': nucs[i:i+1], 'k3': nucs[i-1:i+2], 'k5': nucs[i-2:i+3]
         , 'median': median, 'mad': mad
         , 'medianZ': medianZ, 'madZ': madZ
          })
   readpd = readpd.append(eachPos, ignore_index=True)
-  kmers.append(readpd)
+  readpd.to_csv(os.path.join(outdir, f'{r}.kmers.csv.zst'), index=False)
   eachK = []
   appendKx(eachK, r, readpd, 'k1')
   appendKx(eachK, r, readpd, 'k3')
@@ -84,11 +79,11 @@ for r in readIDs:
   pdeach = pd.DataFrame()
   pdeach = pdeach.append(eachK)
   summs.append(pdeach)
+  # TODO append in linear time to readspd ...
 
-reads = reads.append(eachRead, ignore_index=True)
-kmers = pd.DataFrame().append(kmers, ignore_index=True)
-summs = pd.DataFrame().append(summs, ignore_index=True)
-summs.to_csv(outfname + ".summary.csv.zst")
-kmers.to_csv(outfname + ".kmers.csv.zst")
-reads.to_csv(outfname + ".reads.csv.zst")
+summspd = pd.DataFrame().append(summs, ignore_index=True)
+summspd.to_csv(os.path.join(outdir, "summary.csv.zst"), index=False)
+
+readspd = reads.append(eachRead, ignore_index=True)
+readspd.to_csv(os.path.join(outdir, "reads.csv.zst"), index=False)
 
