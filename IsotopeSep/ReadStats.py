@@ -77,8 +77,10 @@ for cnt, r in enumerate(readIDs):
     print(f'NEW [{cnt :5d} / {numR : 5d}] {r}')
     preRaw, sufRaw, segmented, nucs = Fast5.fast5ReadData(infname, r)
     medianR, madR = Stats.medianMad(sufRaw)
+    pfxMedianR, pfxMadR = Stats.medianMad(preRaw)
     # this is O(n^2), but @n=4000@ over a long while
-    reads = reads.append({'read': r, 'median': medianR, 'mad': madR}, ignore_index=True)
+    reads = reads.append( {'read': r, 'median': medianR, 'mad': madR, 'pfxMedian': pfxMedianR, 'pfxMad': pfxMadR}
+                        , ignore_index=True)
     reads.to_csv(readsfile, index=False, float_format='%.3f')
 
     #for each nucleotide position in each read ...
