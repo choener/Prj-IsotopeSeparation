@@ -30,6 +30,7 @@
         p.scikitlearn
         p.scipy
         p.seaborn
+        p.zstandard
         #p.jax
         #p.jaxlib
       ]);
