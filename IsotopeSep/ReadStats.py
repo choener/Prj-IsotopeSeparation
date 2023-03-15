@@ -8,15 +8,24 @@ import argparse
 import pandas as pd
 import numpy as np
 import sys
+from csv import writer
+import signal
 
 import Fast5
 import Stats
 
+exit_gracefully = False
 
+def signal_handler(sig, frame):
+  print('Ctrl+C captured. Prepare to exit gracefully...')
+  exit_gracefully = True
+
+signal.signal(signal.SIGINT, signal_handler)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--outdir', help='csv with the output data. defaults to input with csv suffix')
 parser.add_argument('input', nargs=1)
+parser.add_argument('--maxcount', help='maximal number of reads to process at once')
 
 args = parser.parse_args()
 
@@ -33,16 +42,18 @@ if infname == outdir:
 
 os.makedirs(outdir, exist_ok=True)
 
-readsfile = ""
 
-summs = []
+# summary information for reads. This is one line per read only
+readsfile = os.path.join(outdir, "reads.csv.zst")
 reads = pd.DataFrame()
 if os.path.exists(readsfile):
-  pd.read_csv(readsfile)
+  reads = pd.read_csv(readsfile)
+  print('reading readsfile')
+assert reads is not None
 
-eachRead = []
+summaryfile = os.path.join(outdir, "summary.csv.zst")
 
-def appendKx(eackK, r, readpd, kx):
+def appendKx(eachK, r, readpd, kx):
   for k in sorted(set(readpd[kx])):
     medianMed, medianMad = Stats.medianMad(readpd[readpd[kx]==k]['medianZ'])
     eachK.append({'read': r, 'k': k, 'medianZ': medianMed, 'madZ': medianMad})
@@ -53,37 +64,43 @@ readIDs = Fast5.fast5Reads(infname)
 numR = len(readIDs)
 for cnt, r in enumerate(readIDs):
   r = sys.intern(r)
-  print(f'[{cnt :5d} / {numR : 5d}] {r}')
-  preRaw, sufRaw, segmented, nucs = Fast5.fast5ReadData(infname, r)
-  medianR, madR = Stats.medianMad(sufRaw)
-  eachRead.append({'read': r, 'median': medianR, 'mad': madR})
-  #for each nucleotide position in each read ...
-  #NOTE the range is only for valid kmers!
-  readpd = pd.DataFrame()
-  eachPos = []
-  for i in range(2,len(nucs)-2):
-    median, mad = Stats.medianMad(segmented[i])
-    medianZ, madZ = Stats.medianMad((segmented[i]-medianR)/madR)
-    eachPos.append(
-        { 'read': cnt
-        , 'k1': nucs[i:i+1], 'k3': nucs[i-1:i+2], 'k5': nucs[i-2:i+3]
-        , 'median': median, 'mad': mad
-        , 'medianZ': medianZ, 'madZ': madZ
-         })
-  readpd = readpd.append(eachPos, ignore_index=True)
-  readpd.to_csv(os.path.join(outdir, f'{r}.kmers.csv.zst'), index=False)
-  eachK = []
-  appendKx(eachK, r, readpd, 'k1')
-  appendKx(eachK, r, readpd, 'k3')
-  appendKx(eachK, r, readpd, 'k5')
-  pdeach = pd.DataFrame()
-  pdeach = pdeach.append(eachK)
-  summs.append(pdeach)
-  # TODO append in linear time to readspd ...
 
-summspd = pd.DataFrame().append(summs, ignore_index=True)
-summspd.to_csv(os.path.join(outdir, "summary.csv.zst"), index=False)
+  # TODO handle sigint
+  if args.maxcount is not None and cnt>=int(args.maxcount):
+    break
 
-readspd = reads.append(eachRead, ignore_index=True)
-readspd.to_csv(os.path.join(outdir, "reads.csv.zst"), index=False)
+  # ignore known reads
+  if len(reads)>0 and (cnt < len(reads) or any(reads['read']==r)):
+    print(f'IGNORE [{cnt :5d} / {numR : 5d}] {r}')
+  else:
+    print(f'NEW [{cnt :5d} / {numR : 5d}] {r}')
+    preRaw, sufRaw, segmented, nucs = Fast5.fast5ReadData(infname, r)
+    medianR, madR = Stats.medianMad(sufRaw)
+    # this is O(n^2), but @n=4000@ over a long while
+    reads = reads.append({'read': r, 'median': medianR, 'mad': madR}, ignore_index=True)
+    reads.to_csv(readsfile, index=False, float_format='%.3f')
+
+    #for each nucleotide position in each read ...
+    #NOTE the range is only for valid kmers!
+    readpd = pd.DataFrame()
+    eachPos = []
+    for i in range(2,len(nucs)-2):
+      median, mad = Stats.medianMad(segmented[i])
+      medianZ, madZ = Stats.medianMad((segmented[i]-medianR)/madR)
+      eachPos.append(
+          { 'read': cnt
+          , 'k1': nucs[i:i+1], 'k3': nucs[i-1:i+2], 'k5': nucs[i-2:i+3]
+          , 'median': median, 'mad': mad
+          , 'medianZ': medianZ, 'madZ': madZ
+           })
+    readpd = readpd.append(eachPos, ignore_index=True)
+    eachK = []
+    appendKx(eachK, r, readpd, 'k1')
+    appendKx(eachK, r, readpd, 'k3')
+    appendKx(eachK, r, readpd, 'k5')
+    pdeach = pd.DataFrame(eachK)
+    with open(summaryfile, 'a') as sf:
+      pdeach.to_csv(sf, index=False,header=(cnt==0), float_format='%.3f')
+    readpd = readpd.drop(['k1','k3'], axis=1)
+    readpd.to_csv(os.path.join(outdir, f'{r}.kmers.csv.zst'), index=False, float_format='%.3f')
 
