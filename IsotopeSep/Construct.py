@@ -2,6 +2,9 @@
 # The summary statistics construct. Loops over Fast5 files, extracts the information we can use and
 # constructs a pickle, for fasta re-runs (since we have literally 100's of GByte of data).
 
+# TODO test if strings are interned. IE. "c is d" returns true for "equal" strings. If not, there is
+# sys.intern(str) which will internalize the string.
+
 from os.path import join
 from scipy import stats
 import logging as log
