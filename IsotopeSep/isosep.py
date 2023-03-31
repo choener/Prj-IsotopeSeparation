@@ -52,7 +52,7 @@ def main ():
     log.error('no summary.csv.zst given')
     exit(0)
   # prepare construct
-  hashstore = sha512(str(args.summarydirs).encode('utf-8')).hexdigest()
+  hashstore = sha512((args.kmer + str(args.summarydirs)).encode('utf-8')).hexdigest()
   storename = join("./store", hashstore + ".pickle")
   construct = Construct.Construct()
   for p,b in args.barcode:
