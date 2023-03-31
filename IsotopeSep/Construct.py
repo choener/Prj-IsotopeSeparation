@@ -17,6 +17,7 @@ import sys
 
 import Fast5
 import Stats
+import Kmer
 
 # Infrastructure construct, which tells us the comparison / classification items.
 # NOTE Currently this is a bi-classification, later on we should consider a structured 3-label
@@ -32,24 +33,61 @@ import Stats
 class Construct:
 
   # Initialize (and pickle)
-  def __init__(self, barcodes):
+  def __init__(self):
     self.labels = {}
     self.finishedReads = set()      # store which reads we have finished working with
+    self.dfgroups = []
     self.summaryStats = None        # data frame containing all summary statistics
-    for pcnt,barcode in barcodes:
-      log.info(f'{int(pcnt):3d}%  ->  barcode file: {barcode:s}')
-      self.labels[pcnt] = getIdLabels(barcode)
-    # Check that labels are unique, performs intersection test on all pairs of labels
-    log.info('label check')
-    for l in self.labels.keys():
-      for k in self.labels.keys():
-        if l>=k: continue # check upper triangular matrix
-        s = self.labels[l].intersection(self.labels[k])
-        if len(s) > 0:
-          sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
+
+  def addbarcode(self, pcnt, barcode):
+    log.info(f'barcode file: {barcode:s}  ->  {int(pcnt):3d}%')
+    for lbl in getIdLabels(barcode):
+      self.labels[lbl] = float(pcnt) / 100
+    #self.labels[pcnt] = self.labels.get(pcnt,set()).union(getIdLabels(barcode))
+    #log.info('label check')
+    #for l in self.labels.keys():
+    #  for k in self.labels.keys():
+    #    if l>=k: continue # check upper triangular matrix
+    #    s = self.labels[l].intersection(self.labels[k])
+    #    if len(s) > 0:
+    #      sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
 
   def __len__(self):
     return (len(self.finishedReads))
+
+  # Add a dataframe with kmer information for further processing
+  # this will reduce the dataframe to key pairs (kmer,relative d2o) with mean values for medianZ and
+  # madZ.
+  # TODO add column that contains the normalized (prefix information). Needs to be scaled the same
+  # way "madZ" is scaled. That information is available in reads.csv.zst
+  def addkmerdf(self,kmer,df):
+    # restrict processing to rows with correct kmer length
+    k = df['k']
+    k = k.apply(lambda x: len(x) == int(kmer))
+    df = df[k]
+    # now determine relative d2o content based on read and known labels
+    rs = df['read']
+    rs = rs.apply(lambda x: self.labels.get(x[5:],np.nan))
+    df = df.assign(rel = rs)
+    # somewhat involved construction of missing kmers, set to zero!
+    missing = []
+    for r,g in df.groupby('read'):
+      # construct missing indices
+      mixs = set(Kmer.gen(int(kmer)))
+      mixs = mixs.difference(set(g['k']))
+      mixs = pd.MultiIndex.from_product([[r],mixs], names=['read','k'])
+      mdf = pd.DataFrame(index=mixs, columns = df.columns.drop(['read','k'])).fillna(0)
+      mdf = mdf.assign(rel = g['rel'].mean())
+      missing.append(mdf)
+    # prepare frame
+    df = df.set_index(['read','k'])
+    df = pd.concat([df] + missing)
+    df = df.sort_index()
+    self.dfgroups.append(df)
+
+  def mergegroups(self):
+    sing = pd.concat(self.dfgroups)
+    self.dfgroups = [sing]
 
   # save a Construct to file
   def save(self, fname):
@@ -69,13 +107,13 @@ class Construct:
       return c
 
   # will merge the "other" datastructure into ourself. Doesn't do any fancy error checking.
-  def merge(self, other):
-    self.labels.update(other.labels)
-    self.finishedReads.update(other.finishedReads)
-    if self.summaryStats is None:
-      self.summaryStats = other.summaryStats
-    else:
-      self.summaryStats.merge(other.summaryStats)
+  #def merge(self, other):
+  #  self.labels.update(other.labels)
+  #  self.finishedReads.update(other.finishedReads)
+  #  if self.summaryStats is None:
+  #    self.summaryStats = other.summaryStats
+  #  else:
+  #    self.summaryStats.merge(other.summaryStats)
 
   # handle all reads within a file. If maxCnt is given, then stop after this many new reads have
   # been collected. This allows for stopping and restarting.

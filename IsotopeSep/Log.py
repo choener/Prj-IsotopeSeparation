@@ -39,106 +39,62 @@ def genKcoords (k):
 
 # TODO consider normalization
 
-def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = True, priorpredictive = True):
-  assert (kmer=='k1' or kmer=='k3' or kmer=='k5')
-  # explicit selection of which rows to keep around, removing all with errors and such things
-  keep = []
-  for i,k in enumerate(stats.label):
-    l=float(k)
-    if l>=0 and l<=1 and not np.isnan(stats.preMedian[i]):
-      keep.append(True)
-    else:
-      keep.append(False)
-  keep = np.array(keep)
-  keepcnt = {}
-  for k in np.array(stats.label)[keep]:
-    keepcnt[k] = keepcnt.get(k, 0) + 1
-  log.info(f'counts in stats: {keepcnt}')
-  minkeep = min(keepcnt.values())
-  log.info(f'keep at most: {minkeep}')
-  #
-  # TODO select the min(keepcnt), then split keep into classes, for each class draw min(keepcnt)
-  # elements
-  #
-  selcnt = {}
-  for k in keepcnt.keys():
-    selcnt[k] = 0
-  shuffled = list(enumerate(stats.label))
-  shuffle(shuffled)
-  for i,k in shuffled:
-    l = float(k)
-    if l > 0 and l < 1:
-      keep[i] = False
-    if keep[i] and selcnt[k] < minkeep:
-      selcnt[k] = selcnt[k] + 1
-    elif k >= 0:
-      keep[i] = False
-  log.info(f'counts after minimal selection: {selcnt}, checking with: {sum(keep)}')
+def runModel(df, train = True, posteriorpredictive = True, priorpredictive = True):
+  ks = set(df['k'])
+  rels= set(df['rel'])
+  assert len(ks)>0
+  kmerlen = len(list(ks)[0])
+  log.info(f'Model with {len(ks)} kmers of size {kmerlen} and rels: {rels}')
 
-  #
-  # prepare data based on what to keep
-  #
-  # percent deuterium
-  pcnt = np.array([float(x) / 1.0 for x in stats.label])[keep]
-  # preMedian holds the median pA for adapter, etc; N (vector)
-  preMedian = np.array(stats.preMedian)[keep] # ,ndmin=2).T[keep]
-  # medians, for the 1,3,5-mers; Nx4^k
-  k1Medians = np.array(stats.k1Medians)[keep]
-  k3Medians = np.array(stats.k3Medians)[keep]
-  k5Medians = np.array(stats.k5Medians)[keep]
-  # median absolute deviations
-  k3Mads = np.array(stats.k3Mads)[keep]
-  k3Len  = np.array(stats.k3LenMean)[keep]
-  # rescale values, based on k5 measurements
-  k5mean = np.mean(k5Medians)
-  k5std  = np.std(k5Medians)
-  # rescaling of different measurements
-  preMedian = (preMedian - k5mean) / k5std
-  k1Medians = (k1Medians - k5mean) / k5std
-  k3Medians = (k3Medians - k5mean) / k5std
-  k5Medians = (k5Medians - k5mean) / k5std
-  # build up the actual model
-  kMedians = None
-  kMads = None
-  if kmer=='k1':
-    kMedians = k1Medians
-  elif kmer=='k3':
-    kMedians = k3Medians
-    # k3mads
-    tmp = k3Mads.flatten()
-    tmp[tmp == 0] = np.median(tmp[tmp>0])
-    # TODO better plots, separating out the classes!
-    _, ax = plt.subplots(figsize=(12, 6))
-    az.plot_kde(tmp, label='MAD '+kmer, bw='scott', plot_kwargs={'color':'black'})
-    kMads, lmbd = scipy.stats.boxcox(tmp)
-    kMads = (kMads - np.mean(kMads)) / np.std(kMads)
-    az.plot_kde(kMads, label=f'BoxCox, λ={lmbd :.2f}', bw='scott', plot_kwargs={'color':'blue'})
-    ax.legend(fontsize=10, frameon=True, framealpha=0.5)
-    plt.xlim(left=-5, right=10)
-    plt.savefig(f'{kmer}-kmads.png')
-    plt.savefig(f'{kmer}-kmads.pdf')
-    plt.close()
-    kMads = kMads.reshape(-1,64)
-    # k3len
-    tmp = k3Len.flatten()
-    tmp[tmp == 0] = np.median(tmp[tmp>0])
-    _, ax = plt.subplots(figsize=(12, 6))
-    az.plot_kde(tmp)
-    kLen, lmbd = scipy.stats.boxcox(tmp)
-    kLen = (kLen - np.median(kLen)) / np.std(kLen)
-    az.plot_kde(kLen)
-    plt.xlim(left=-5, right=20)
-    plt.savefig(f'{kmer}-klen.png')
-    plt.savefig(f'{kmer}-klen.pdf')
-    plt.close()
-    kLen = kLen.reshape(-1,64)
-  elif kmer=='k5':
-    kMedians = k5Medians
+  print(df)
+  # The "madZ" values are all positive. We apply a Box-Cox transformation here
+  mads, lmbd = scipy.stats.boxcox(df['madZ'])
+  df = df.assign(madZbc = mads)
+  print(df)
+
+  # transform the column into the correct matrix form
+  medianZ = df['medianZ']
+  print(medianZ)
+
+  ## build up the actual model
+  #kMedians = None
+  #kMads = None
+  #if kmer=='k1':
+  #  kMedians = k1Medians
+  #elif kmer=='k3':
+  #  kMedians = k3Medians
+  #  # k3mads
+  #  tmp = k3Mads.flatten()
+  #  tmp[tmp == 0] = np.median(tmp[tmp>0])
+  #  # TODO better plots, separating out the classes!
+  #  _, ax = plt.subplots(figsize=(12, 6))
+  #  az.plot_kde(tmp, label='MAD '+kmer, bw='scott', plot_kwargs={'color':'black'})
+  #  kMads, lmbd = scipy.stats.boxcox(tmp)
+  #  kMads = (kMads - np.mean(kMads)) / np.std(kMads)
+  #  az.plot_kde(kMads, label=f'BoxCox, λ={lmbd :.2f}', bw='scott', plot_kwargs={'color':'blue'})
+  #  ax.legend(fontsize=10, frameon=True, framealpha=0.5)
+  #  plt.xlim(left=-5, right=10)
+  #  plt.savefig(f'{kmer}-kmads.png')
+  #  plt.savefig(f'{kmer}-kmads.pdf')
+  #  plt.close()
+  #  kMads = kMads.reshape(-1,64)
+  #  # k3len
+  #  tmp = k3Len.flatten()
+  #  tmp[tmp == 0] = np.median(tmp[tmp>0])
+  #  _, ax = plt.subplots(figsize=(12, 6))
+  #  az.plot_kde(tmp)
+  #  kLen, lmbd = scipy.stats.boxcox(tmp)
+  #  kLen = (kLen - np.median(kLen)) / np.std(kLen)
+  #  az.plot_kde(kLen)
+  #  plt.xlim(left=-5, right=20)
+  #  plt.savefig(f'{kmer}-klen.png')
+  #  plt.savefig(f'{kmer}-klen.pdf')
+  #  plt.close()
+  #  kLen = kLen.reshape(-1,64)
+  #elif kmer=='k5':
+  #  kMedians = k5Medians
   # prepare coords
-  coords = { 'k1': genKcoords(1)
-           , 'k3': genKcoords(3)
-           , 'k5': genKcoords(5)
-           , 'kmer': genKcoords(int(kmer[1]))
+  coords = { 'kmer': ks
            }
   #
   # prepare model
@@ -146,24 +102,25 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
   with pm.Model(coords = coords) as model:
     # data we want to be able to swap for posterior predictive
     # access via get_value() / set_value()
-    preMedian = pm.MutableData("preMedian", preMedian.reshape(-1,1))
-    kMedians  = pm.MutableData("kMedians", np.array(kMedians))
-    kMads     = pm.MutableData('kMads', np.array(kMads))
+    #preMedian = pm.MutableData("preMedian", preMedian.reshape(-1,1))
+    medianZ  = pm.MutableData("medianZ", medianZ) #np.array([...])
+    madZbc   = pm.MutableData('madZbc', df['madZbc']) #np.array(kMads))
 
-    pScale    = pm.Beta('preScale', 0.5, 0.5)
-    kScale    = pm.Normal('scale'+kmer, 0, 1, dims='kmer')
-    mScale    = pm.Normal('mad'+kmer, 0, 1, dims='kmer')
+    #pScale    = pm.Beta('preScale', 0.5, 0.5)
+    kScale    = pm.Normal('scale', 0, 1, dims='kmer')
+    #mScale    = pm.Normal('mad'+kmer, 0, 1, dims='kmer')
     intercept = pm.Normal('intercept', 0, 10)
 
-    rowSum    =  pm.math.dot(kMedians - pScale * preMedian, kScale)
-    rowSum    += pm.math.dot(kMads, mScale)
+    rowSum    =  pm.math.dot(medianZ, kScale)
+    #rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
+    #rowSum    += pm.math.dot(kMads, mScale)
     predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
 
-    log.info(f'{kMedians.get_value().shape}')
+    log.info(f'{medianZ.get_value().shape}')
     log.info(f'{kScale.shape}')
 
     #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
-    obs = pm.Bernoulli("obs", p=predpcnt, observed=pcnt)
+    obs = pm.Bernoulli("obs", p=predpcnt, observed=df['rel'])
 
   # prior predictive checks needs to be written down still
   if priorpredictive:
@@ -206,7 +163,7 @@ def runModel(stats : SummaryStats, kmer, train = True, posteriorpredictive = Tru
   # plot the posterior, should be quite fast
   # TODO only plots subset of figures, if there are too many subfigures
   log.info(f'plotting posterior distributions')
-  #g = kMedians.get_value().shape[1]
+  #g = medianZ.get_value().shape[1]
   #g = 1 + int(np.sqrt(g+2))
   az.plot_posterior(trace, var_names=['intercept', 'preScale']) # , grid=(g,g))
   plt.savefig(f'{kmer}-posterior.png')
