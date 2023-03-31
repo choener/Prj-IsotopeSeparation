@@ -98,6 +98,16 @@ class Construct:
     sing = pd.concat(self.dfgroups)
     self.dfgroups = [sing]
 
+  def savegroups(self, fname):
+    sing = pd.concat(self.dfgroups)
+    with open(fname, 'wb') as f:
+      pickle.dump(sing, f)
+
+  def loadgroups(self, fname):
+    with open(fname, 'rb') as f:
+      sing = pickle.load(f)
+    self.dfgroups = [sing]
+
   # save a Construct to file
   def save(self, fname):
     with open(fname, 'wb') as f:
@@ -106,13 +116,13 @@ class Construct:
   # construct = Construct.load("f.name")
   @classmethod
   def load(cls, fname):
-    c = cls(barcodes = [])
+    c = cls()
     with open(fname, 'rb') as f:
       dict = pickle.load(f)
       c.__dict__.update(dict)
-      assert (c.summaryStats is not None)
-      sz = len(c.finishedReads)
-      assert (sz == len(c.summaryStats))
+      #assert (c.summaryStats is not None)
+      #sz = len(c.finishedReads)
+      #assert (sz == len(c.summaryStats))
       return c
 
   # will merge the "other" datastructure into ourself. Doesn't do any fancy error checking.

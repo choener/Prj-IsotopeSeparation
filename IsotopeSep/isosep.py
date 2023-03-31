@@ -8,6 +8,7 @@ import logging as log
 import matplotlib as pl
 import pandas as pd
 import pymc as mc
+from hashlib import sha512
 
 import Construct
 import Log
@@ -51,24 +52,30 @@ def main ():
     log.error('no summary.csv.zst given')
     exit(0)
   # prepare construct
+  hashstore = sha512(str(args.summarydirs).encode('utf-8')).hexdigest()
+  storename = join("./store", hashstore + ".pickle")
   construct = Construct.Construct()
   for p,b in args.barcode:
     construct.addbarcode(p,b)
-  for p in args.summarydirs:
-    log.info(f'PATH" {p}')
-    if isfile(p):
-      log.info(f'FILE PATH" {p}')
-      df = pd.read_csv(p)
-      rds = pd.read_csv(join(dirname(p),"reads.csv.zst"))
-      construct.addkmerdf(args.kmer, df, rds)
-    if isdir(p):
-      log.info(f'DIRECTORY PATH" {p}')
-      for rname in Path(p).rglob(f'summary.csv.zst'):
-        log.info(f'FILE PATH" {rname}')
-        df = pd.read_csv(rname)
-        rds = pd.read_csv(join(dirname(rname),"reads.csv.zst"))
+  if exists(storename):
+    construct.loadgroups(storename)
+  else:
+    for p in args.summarydirs:
+      log.info(f'PATH" {p}')
+      if isfile(p):
+        log.info(f'FILE PATH" {p}')
+        df = pd.read_csv(p)
+        rds = pd.read_csv(join(dirname(p),"reads.csv.zst"))
         construct.addkmerdf(args.kmer, df, rds)
-  construct.mergegroups()
+      if isdir(p):
+        log.info(f'DIRECTORY PATH" {p}')
+        for rname in Path(p).rglob(f'summary.csv.zst'):
+          log.info(f'FILE PATH" {rname}')
+          df = pd.read_csv(rname)
+          rds = pd.read_csv(join(dirname(rname),"reads.csv.zst"))
+          construct.addkmerdf(args.kmer, df, rds)
+    construct.mergegroups()
+    construct.savegroups(storename)
 
   log.info(f'Model loaded with {len(construct)} reads')
   # Log.runModel(args.kmer,construct.dfgroups[0])
