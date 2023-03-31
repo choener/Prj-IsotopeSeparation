@@ -69,7 +69,7 @@ def main ():
   construct.mergegroups()
 
   log.info(f'Model loaded with {len(construct)} reads')
-  Log.runModel(args.kmer,construct.dfgroups[0])
+  # Log.runModel(args.kmer,construct.dfgroups[0])
   #if (args.dataplots):
   #  assert(construct.summaryStats is not None)
   #  construct.summaryStats.postFile(args.outputdir)
@@ -77,9 +77,8 @@ def main ():
   #  assert(construct.summaryStats is not None)
   #if args.posteriorpredictive:
   #  assert(construct.summaryStats is not None)
-  #if args.train or args.posteriorpredictive or args.priorpredictive:
-  #  assert(construct.summaryStats is not None)
-  #  Log.runModel(construct.summaryStats, kmer = args.kmer, train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive)
+  if args.train or args.posteriorpredictive or args.priorpredictive:
+    Log.runModel(args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive)
 
 
 

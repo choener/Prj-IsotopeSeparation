@@ -149,16 +149,16 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     trace = trace.from_netcdf(f'{kmer}-trace.netcdf')
     pass
   # create plot(s); later guard via switch
-  if True:
+  if False:
     # plot only subset?
     az.plot_trace(trace, compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
     plt.savefig(f'{kmer}-trace.png')
     plt.savefig(f'{kmer}-trace.pdf')
     plt.close()
-    az.plot_forest(trace, var_names=['~p'])
-    plt.savefig(f'{kmer}-forest.png')
-    plt.savefig(f'{kmer}-forest.pdf')
-    plt.close()
+    #az.plot_forest(trace, var_names=['~p'])
+    #plt.savefig(f'{kmer}-forest.png')
+    #plt.savefig(f'{kmer}-forest.pdf')
+    #plt.close()
     print(az.summary(trace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
@@ -166,14 +166,14 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   log.info(f'plotting posterior distributions')
   #g = medianZ.get_value().shape[1]
   #g = 1 + int(np.sqrt(g+2))
-  az.plot_posterior(trace, var_names=['intercept', 'preScale']) # , grid=(g,g))
+  az.plot_posterior(trace, var_names=['intercept']) # , 'preScale']) # , grid=(g,g))
   plt.savefig(f'{kmer}-posterior.png')
   plt.savefig(f'{kmer}-posterior.pdf')
   plt.close()
-  az.plot_posterior(trace, var_names=['~p', '~intercept', '~preScale'])
-  plt.savefig(f'{kmer}-posterior-all.png')
-  plt.savefig(f'{kmer}-posterior-all.pdf')
-  plt.close()
+  #az.plot_posterior(trace, var_names=['~p', '~intercept', '~preScale'])
+  #plt.savefig(f'{kmer}-posterior-all.png')
+  #plt.savefig(f'{kmer}-posterior-all.pdf')
+  #plt.close()
 
   if posteriorpredictive:
     with model:
@@ -188,7 +188,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       mpreds = trace['predictions']
       mppmean = mpreds['p'].mean(axis=(0,1))
       mppstd = mpreds['p'].std(axis=(0,1))
-      obs = xr.DataArray(data=pcnt, coords=mppmean.coords)
+      obs = xr.DataArray(data=rel, coords=mppmean.coords)
       # inplace sorting of the results, keeps means and variances associated
       mppmean = mppmean.sortby(mppmean)
       mppstd  = mppstd.sortby(mppmean)
