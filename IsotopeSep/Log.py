@@ -10,6 +10,7 @@ import numpy as np
 import pymc as pm
 import scipy
 import xarray as xr
+import random
 
 import Stats
 from Construct import SummaryStats
@@ -41,6 +42,15 @@ def genKcoords (k):
 # TODO consider normalization
 
 def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True):
+  # prepare subsampling
+  rels = df['rel'].value_counts()
+  samplecount = int(min(rels) / (4**int(kmer)))
+  sampledreads = []
+  for i in rels.index:
+    cands = list(set(df[df['rel']==i].droplevel('k').index))
+    random.shuffle(cands)
+    sampledreads.extend(cands[0:samplecount])
+  log.info(f'subsampled {samplecount} reads for each d2o level')
   #ks = set(df['k'])
   #rels= set(df['rel'])
   #assert len(ks)>0
@@ -111,12 +121,12 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
 
     #pScale    = pm.Beta('preScale', 0.5, 0.5)
     kScale    = pm.Normal('scale', 0, 1, dims='kmer')
-    #mScale    = pm.Normal('mad'+kmer, 0, 1, dims='kmer')
+    mScale    = pm.Normal('mad', 0, 1, dims='kmer')
     intercept = pm.Normal('intercept', 0, 10)
 
     rowSum    =  pm.math.dot(medianZ, kScale)
     #rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
-    #rowSum    += pm.math.dot(kMads, mScale)
+    rowSum    += pm.math.dot(madZbc, mScale)
     predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
 
     log.info(f'medianZ data shape: {medianZ.get_value().shape}')
