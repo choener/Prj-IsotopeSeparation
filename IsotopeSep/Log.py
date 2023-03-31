@@ -42,6 +42,7 @@ def genKcoords (k):
 # TODO consider normalization
 
 def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True):
+
   # prepare subsampling
   rels = df['rel'].value_counts()
   samplecount = int(min(rels) / (4**int(kmer)))
@@ -51,11 +52,8 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     random.shuffle(cands)
     sampledreads.extend(cands[0:samplecount])
   log.info(f'subsampled {samplecount} reads for each d2o level')
-  #ks = set(df['k'])
-  #rels= set(df['rel'])
-  #assert len(ks)>0
-  #kmerlen = len(list(ks)[0])
-  #log.info(f'Model with {len(ks)} kmers of size {kmerlen} and rels: {rels}')
+  df = df[df.droplevel('k').index.isin(sampledreads)]
+  print(df)
 
   # The "madZ" values are all positive. We apply a Box-Cox transformation here
   meanmadz = df[df['madZ']>0]['madZ'].mean()
@@ -69,43 +67,6 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   rel = df['rel'].to_xarray()[:,0]
   rel = rel.drop_vars('k')
 
-  ## build up the actual model
-  #kMedians = None
-  #kMads = None
-  #if kmer=='k1':
-  #  kMedians = k1Medians
-  #elif kmer=='k3':
-  #  kMedians = k3Medians
-  #  # k3mads
-  #  tmp = k3Mads.flatten()
-  #  tmp[tmp == 0] = np.median(tmp[tmp>0])
-  #  # TODO better plots, separating out the classes!
-  #  _, ax = plt.subplots(figsize=(12, 6))
-  #  az.plot_kde(tmp, label='MAD '+kmer, bw='scott', plot_kwargs={'color':'black'})
-  #  kMads, lmbd = scipy.stats.boxcox(tmp)
-  #  kMads = (kMads - np.mean(kMads)) / np.std(kMads)
-  #  az.plot_kde(kMads, label=f'BoxCox, λ={lmbd :.2f}', bw='scott', plot_kwargs={'color':'blue'})
-  #  ax.legend(fontsize=10, frameon=True, framealpha=0.5)
-  #  plt.xlim(left=-5, right=10)
-  #  plt.savefig(f'{kmer}-kmads.png')
-  #  plt.savefig(f'{kmer}-kmads.pdf')
-  #  plt.close()
-  #  kMads = kMads.reshape(-1,64)
-  #  # k3len
-  #  tmp = k3Len.flatten()
-  #  tmp[tmp == 0] = np.median(tmp[tmp>0])
-  #  _, ax = plt.subplots(figsize=(12, 6))
-  #  az.plot_kde(tmp)
-  #  kLen, lmbd = scipy.stats.boxcox(tmp)
-  #  kLen = (kLen - np.median(kLen)) / np.std(kLen)
-  #  az.plot_kde(kLen)
-  #  plt.xlim(left=-5, right=20)
-  #  plt.savefig(f'{kmer}-klen.png')
-  #  plt.savefig(f'{kmer}-klen.pdf')
-  #  plt.close()
-  #  kLen = kLen.reshape(-1,64)
-  #elif kmer=='k5':
-  #  kMedians = k5Medians
   # prepare coords
   coords = { 'kmer': Kmer.gen(int(kmer))
            }
@@ -164,16 +125,16 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     trace = trace.from_netcdf(f'{kmer}-trace.netcdf')
     pass
   # create plot(s); later guard via switch
-  if False:
+  if True:
     # plot only subset?
     az.plot_trace(trace, compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
     plt.savefig(f'{kmer}-trace.png')
     plt.savefig(f'{kmer}-trace.pdf')
     plt.close()
-    #az.plot_forest(trace, var_names=['~p'])
-    #plt.savefig(f'{kmer}-forest.png')
-    #plt.savefig(f'{kmer}-forest.pdf')
-    #plt.close()
+    az.plot_forest(trace, var_names=['~p'])
+    plt.savefig(f'{kmer}-forest.png')
+    plt.savefig(f'{kmer}-forest.pdf')
+    plt.close()
     print(az.summary(trace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
@@ -202,6 +163,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       print(trace)
       # important: contains "p"
       mpreds = trace['predictions']
+      log.info(mpreds)
       mppmean = mpreds['p'].mean(axis=(0,1))
       mppmean = mppmean.rename({'p_dim_2' : 'read'})
       mppstd = mpreds['p'].std(axis=(0,1))
@@ -220,7 +182,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       ax.plot(mppmean, color='blue')
       ax.plot(mppmean + mppstd, color='blue')
       ax.plot(mppmean - mppstd, color='blue')
-      ax.plot(obs, 'o')
+      ax.plot(obs, '.')
       # actual
       ax.set_xlabel('Samples (ordered)')
       ax.set_ylabel('Prediction Error')
