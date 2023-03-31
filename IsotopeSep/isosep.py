@@ -69,7 +69,7 @@ def main ():
   construct.mergegroups()
 
   log.info(f'Model loaded with {len(construct)} reads')
-  Log.runModel(construct.dfgroups[0])
+  Log.runModel(args.kmer,construct.dfgroups[0])
   #if (args.dataplots):
   #  assert(construct.summaryStats is not None)
   #  construct.summaryStats.postFile(args.outputdir)

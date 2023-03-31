@@ -13,6 +13,7 @@ import xarray as xr
 
 import Stats
 from Construct import SummaryStats
+import Kmer
 
 RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
@@ -39,22 +40,21 @@ def genKcoords (k):
 
 # TODO consider normalization
 
-def runModel(df, train = True, posteriorpredictive = True, priorpredictive = True):
-  ks = set(df['k'])
-  rels= set(df['rel'])
-  assert len(ks)>0
-  kmerlen = len(list(ks)[0])
-  log.info(f'Model with {len(ks)} kmers of size {kmerlen} and rels: {rels}')
+def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True):
+  #ks = set(df['k'])
+  #rels= set(df['rel'])
+  #assert len(ks)>0
+  #kmerlen = len(list(ks)[0])
+  #log.info(f'Model with {len(ks)} kmers of size {kmerlen} and rels: {rels}')
 
-  print(df)
   # The "madZ" values are all positive. We apply a Box-Cox transformation here
   mads, lmbd = scipy.stats.boxcox(df['madZ'])
   df = df.assign(madZbc = mads)
-  print(df)
 
   # transform the column into the correct matrix form
-  medianZ = df['medianZ']
-  print(medianZ)
+  medianZ = df['medianZ'].to_xarray()
+  madZbc = df['madZbc'].to_xarray()
+  rel = df['rel'].to_xarray()[:,0]
 
   ## build up the actual model
   #kMedians = None
@@ -94,7 +94,7 @@ def runModel(df, train = True, posteriorpredictive = True, priorpredictive = Tru
   #elif kmer=='k5':
   #  kMedians = k5Medians
   # prepare coords
-  coords = { 'kmer': ks
+  coords = { 'kmer': Kmer.gen(int(kmer))
            }
   #
   # prepare model
@@ -104,7 +104,7 @@ def runModel(df, train = True, posteriorpredictive = True, priorpredictive = Tru
     # access via get_value() / set_value()
     #preMedian = pm.MutableData("preMedian", preMedian.reshape(-1,1))
     medianZ  = pm.MutableData("medianZ", medianZ) #np.array([...])
-    madZbc   = pm.MutableData('madZbc', df['madZbc']) #np.array(kMads))
+    madZbc   = pm.MutableData('madZbc', madZbc) #np.array(kMads))
 
     #pScale    = pm.Beta('preScale', 0.5, 0.5)
     kScale    = pm.Normal('scale', 0, 1, dims='kmer')
@@ -116,11 +116,12 @@ def runModel(df, train = True, posteriorpredictive = True, priorpredictive = Tru
     #rowSum    += pm.math.dot(kMads, mScale)
     predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
 
-    log.info(f'{medianZ.get_value().shape}')
-    log.info(f'{kScale.shape}')
+    log.info(f'medianZ data shape: {medianZ.get_value().shape}')
+    log.info(f'madZbc data shape: {madZbc.get_value().shape}')
+    log.info(f'scale shape: {kScale.shape}')
 
     #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
-    obs = pm.Bernoulli("obs", p=predpcnt, observed=df['rel'])
+    obs = pm.Bernoulli("obs", p=predpcnt, observed=rel)
 
   # prior predictive checks needs to be written down still
   if priorpredictive:
