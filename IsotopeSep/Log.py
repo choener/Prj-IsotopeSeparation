@@ -122,6 +122,8 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     log.info(f'medianZ data shape: {medianZ.get_value().shape}')
     log.info(f'madZbc data shape: {madZbc.get_value().shape}')
     log.info(f'scale shape: {kScale.shape}')
+    log.info(f'obs shape: {rel.shape}')
+    log.info(f'obs: {rel}')
 
     #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
     obs = pm.Bernoulli("obs", p=predpcnt, observed=rel)

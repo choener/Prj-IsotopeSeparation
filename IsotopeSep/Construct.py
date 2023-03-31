@@ -74,6 +74,8 @@ class Construct:
     rs = df['read']
     rs = rs.apply(lambda x: self.labels.get(x[5:],np.nan))
     df = df.assign(rel = rs)
+    # remove all reads, where we have no deuterium concentration assignment
+    df = df.dropna()
     # somewhat involved construction of missing kmers, set to zero!
     missing = []
     for r,g in df.groupby('read'):
