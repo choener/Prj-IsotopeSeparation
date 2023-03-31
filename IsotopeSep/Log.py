@@ -171,7 +171,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       print('mppmean', mppmean)
       print('mppmean.coords', mppmean.coords)
       print('rel', rel)
-      obs = xr.DataArray(data=rel) #, coords=mppmean.coords)
+      obs = xr.DataArray(data=rel, coords=mppmean.coords)
       print('obs', obs)
       # inplace sorting of the results, keeps means and variances associated
       mppmean = mppmean.sortby(mppmean)
@@ -191,35 +191,38 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       plt.savefig(f'{kmer}-poos.png')
       plt.savefig(f'{kmer}-poos.pdf')
       plt.close()
-      ## finally draw for each element, how good the prediction went.
-      ## TODO should have multiple lines, depending on 0%, 100%, etc
-      ## positive: 0% with their errors
-      ## negative: 100% with their negated errors
-      #aom = (mppmean-obs)
-      #p0 = aom.where(lambda x: x >= 0, drop=True)
-      #p0 = p0.sortby(p0)
-      #p0good = len(p0.where(lambda x: x < 0.5, drop=True))
-      #p1 = abs(aom.where(lambda x: x <  0, drop=True))
-      #p1 = p1.sortby(p1)
-      #p1good = len(p1.where(lambda x: x < 0.5, drop=True))
-      ##aom = aom.sortby(aom)
-      ##lastgoodaom = aom.where(lambda x: x < 0.5, drop=True)
-      ##print(len(lastgoodaom))
-      #_, ax = plt.subplots(figsize=(12, 6))
-      #plt.axhline(y=0.5, color='black', linestyle='-')
-      #ax.plot(p0, color='orange', label='0% D2O')
-      #plt.axvline(x=p0good, color='orange', linestyle='solid')
-      #plt.annotate(f'{p0good / len(p0):.2f}', xy=(p0good,0.6), color='orange')
-      #ax.plot(p1, color='blue', label='100% D2O')
-      #plt.axvline(x=p1good, color='blue', linestyle='dashed')
-      #plt.annotate(f'{p1good / len(p1):.2f}', xy=(p1good,0.4), color='blue')
-      ## horizontal line at error 0.5
-      #ax.set_xlabel('Samples (ordered)')
-      #ax.set_ylabel('Prediction Error')
-      #ax.set_title('Posterior Predictive Error (per sample)')
-      #ax.legend(fontsize=10, frameon=True, framealpha=0.5)
-      ## TODO vertical line that is annotated with percentage "good"
-      #plt.savefig(f'{kmer}-order-qos.png')
-      #plt.savefig(f'{kmer}-order-qos.pdf')
-      #plt.close()
+      # finally draw for each element, how good the prediction went.
+      # TODO should have multiple lines, depending on 0%, 100%, etc
+      # positive: 0% with their errors
+      # negative: 100% with their negated errors
+      print(mppmean)
+      print(obs)
+      aom = (mppmean-obs)
+      print(aom)
+      p0 = aom.where(lambda x: x >= 0, drop=True)
+      p0 = p0.sortby(p0)
+      p0good = len(p0.where(lambda x: x < 0.5, drop=True))
+      p1 = abs(aom.where(lambda x: x <  0, drop=True))
+      p1 = p1.sortby(p1)
+      p1good = len(p1.where(lambda x: x < 0.5, drop=True))
+      #aom = aom.sortby(aom)
+      #lastgoodaom = aom.where(lambda x: x < 0.5, drop=True)
+      #print(len(lastgoodaom))
+      _, ax = plt.subplots(figsize=(12, 6))
+      plt.axhline(y=0.5, color='black', linestyle='-')
+      ax.plot(p0, color='orange', label='0% D2O')
+      plt.axvline(x=p0good, color='orange', linestyle='solid')
+      plt.annotate(f'{p0good / len(p0):.2f}', xy=(p0good,0.6), color='orange')
+      ax.plot(p1, color='blue', label='100% D2O')
+      plt.axvline(x=p1good, color='blue', linestyle='dashed')
+      plt.annotate(f'{p1good / len(p1):.2f}', xy=(p1good,0.4), color='blue')
+      # horizontal line at error 0.5
+      ax.set_xlabel('Samples (ordered)')
+      ax.set_ylabel('Prediction Error')
+      ax.set_title('Posterior Predictive Error (per sample)')
+      ax.legend(fontsize=10, frameon=True, framealpha=0.5)
+      # TODO vertical line that is annotated with percentage "good"
+      plt.savefig(f'{kmer}-order-qos.png')
+      plt.savefig(f'{kmer}-order-qos.pdf')
+      plt.close()
 
