@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import seaborn as sb
-import sys
+import scipy
 
 import Fast5
 import Stats
@@ -65,6 +65,11 @@ class Construct:
     k = df['k']
     k = k.apply(lambda x: len(x) == int(kmer))
     df = df[k]
+    # transform mad via boxcox: won't always work, if not enough data available
+    #print(df[df['madZ']==0])
+    #mads, lmbd = scipy.stats.boxcox(df['madZ'])
+    #df = df.assign(madZbc = mads)
+    #
     # now determine relative d2o content based on read and known labels
     rs = df['read']
     rs = rs.apply(lambda x: self.labels.get(x[5:],np.nan))
