@@ -66,6 +66,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   madZbc = df['madZbc'].to_xarray()
   rel = df['rel'].to_xarray()[:,0]
   rel = rel.drop_vars('k')
+  preMedian = df['pfxZ'].to_xarray()
 
   # prepare coords
   coords = { 'kmer': Kmer.gen(int(kmer))
@@ -76,20 +77,21 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   with pm.Model(coords = coords) as model:
     # data we want to be able to swap for posterior predictive
     # access via get_value() / set_value()
-    #preMedian = pm.MutableData("preMedian", preMedian.reshape(-1,1))
-    medianZ  = pm.MutableData("medianZ", medianZ) #np.array([...])
-    madZbc   = pm.MutableData('madZbc', madZbc) #np.array(kMads))
+    preMedian = pm.MutableData("preMedian", preMedian)
+    medianZ  = pm.MutableData("medianZ", medianZ)
+    madZbc   = pm.MutableData('madZbc', madZbc)
 
-    #pScale    = pm.Beta('preScale', 0.5, 0.5)
+    pScale    = pm.Beta('preScale', 0.5, 0.5)
     kScale    = pm.Normal('scale', 0, 1, dims='kmer')
     mScale    = pm.Normal('mad', 0, 1, dims='kmer')
     intercept = pm.Normal('intercept', 0, 10)
 
-    rowSum    =  pm.math.dot(medianZ, kScale)
-    #rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
+    #rowSum    =  pm.math.dot(medianZ, kScale)
+    rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
     rowSum    += pm.math.dot(madZbc, mScale)
     predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
 
+    log.info(f'preMedian data shape: {preMedian.get_value().shape}')
     log.info(f'medianZ data shape: {medianZ.get_value().shape}')
     log.info(f'madZbc data shape: {madZbc.get_value().shape}')
     log.info(f'scale shape: {kScale.shape}')
@@ -142,7 +144,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   log.info(f'plotting posterior distributions')
   #g = medianZ.get_value().shape[1]
   #g = 1 + int(np.sqrt(g+2))
-  az.plot_posterior(trace, var_names=['intercept']) # , 'preScale']) # , grid=(g,g))
+  az.plot_posterior(trace, var_names=['intercept', 'preScale']) # , grid=(g,g))
   plt.savefig(f'{kmer}-posterior.png')
   plt.savefig(f'{kmer}-posterior.pdf')
   plt.close()
@@ -184,8 +186,8 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       ax.plot(mppmean - mppstd, color='blue')
       ax.plot(obs, '.')
       # actual
-      ax.set_xlabel('Samples (ordered)')
-      ax.set_ylabel('Prediction Error')
+      ax.set_xlabel('Samples (sorted by p)')
+      ax.set_ylabel('p (Predicted D2O)')
       ax.set_title('Posterior Predictive Error (±σ)')
       ax.legend(fontsize=10, frameon=True, framealpha=0.5)
       plt.savefig(f'{kmer}-poos.png')

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from os.path import exists, isdir, isfile
+from os.path import exists, isdir, isfile, basename, join, dirname
 from pathlib import Path
 import argparse
 import logging
@@ -59,13 +59,15 @@ def main ():
     if isfile(p):
       log.info(f'FILE PATH" {p}')
       df = pd.read_csv(p)
-      construct.addkmerdf(args.kmer, df)
+      rds = pd.read_csv(join(dirname(p),"reads.csv.zst"))
+      construct.addkmerdf(args.kmer, df, rds)
     if isdir(p):
       log.info(f'DIRECTORY PATH" {p}')
       for rname in Path(p).rglob(f'summary.csv.zst'):
         log.info(f'FILE PATH" {rname}')
         df = pd.read_csv(rname)
-        construct.addkmerdf(args.kmer, df)
+        rds = pd.read_csv(join(dirname(rname),"reads.csv.zst"))
+        construct.addkmerdf(args.kmer, df, rds)
   construct.mergegroups()
 
   log.info(f'Model loaded with {len(construct)} reads')

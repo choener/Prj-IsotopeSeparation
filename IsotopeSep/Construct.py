@@ -60,7 +60,9 @@ class Construct:
   # madZ.
   # TODO add column that contains the normalized (prefix information). Needs to be scaled the same
   # way "madZ" is scaled. That information is available in reads.csv.zst
-  def addkmerdf(self,kmer,df):
+  def addkmerdf(self,kmer,df, rds):
+    rds['pfxZ'] = (rds['pfxMedian'] - rds['median']) / rds['mad']
+    df = df.merge(rds[['read','pfxZ']], on='read')
     # restrict processing to rows with correct kmer length
     k = df['k']
     k = k.apply(lambda x: len(x) == int(kmer))
