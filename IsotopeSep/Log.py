@@ -12,6 +12,8 @@ import scipy
 import xarray as xr
 import random
 
+import pymc.sampling.jax
+
 import Stats
 from Construct import SummaryStats
 import Kmer
@@ -41,11 +43,13 @@ def genKcoords (k):
 
 # TODO consider normalization
 
-def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True):
+def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None):
 
   # prepare subsampling
   rels = df['rel'].value_counts()
   samplecount = int(min(rels) / (4**int(kmer)))
+  if maxsamples is not None:
+    samplecount = min(samplecount, int(maxsamples))
   sampledreads = []
   for i in rels.index:
     cands = list(set(df[df['rel']==i].droplevel('k').index))
@@ -118,7 +122,8 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   if train:
     with model:
       log.info('training model')
-      trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
+      #trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
+      trace = pymc.sampling.jax.sample_numpyro_nuts(draws=1000, tune=1000, chains=2, postprocessing_backend='cpu')
       trace.to_netcdf(f'{kmer}-trace.netcdf')
 
       # TODO pickle the trace

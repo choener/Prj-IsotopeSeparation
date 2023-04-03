@@ -31,8 +31,10 @@
         p.scipy
         p.seaborn
         p.zstandard
-        #p.jax
-        #p.jaxlib
+        p.jax
+        #p.jaxlibWithCuda
+        p.jaxlib
+        p.numpyro
       ]);
 
     in rec {
@@ -51,8 +53,16 @@
       packages."vbz" = pkgs.ont_vbz_compression;
     }; # eachSystem
 
-    overlay = final: prev: {
+    overlay = final: prev: rec {
       ont_vbz_compression = final.callPackage ./IsotopeSep/pkgs/vbz {};
+      python3 = prev.python3.override {
+        packageOverrides = self: super: {
+          #numpyro = self.callPackage ./numpyro.nix {};
+          jaxlib = self.jaxlibWithCuda;
+
+        };
+      };
+      python3Packages = python3.pkgs;
     };
 
   in
