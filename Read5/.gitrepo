@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/ingydotnet/git-subrepo#readme
+;
+[subrepo]
+	remote = git@github.com:JannesSP/Read5.git
+	branch = main
+	commit = 400a1f9401bb250c319e157e6d291174b664864b
+	parent = b0beadc9b8685fe102f800a8ef653e3f5018d9f8
+	method = merge
+	cmdver = 0.4.5
