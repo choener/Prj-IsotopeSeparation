@@ -35,22 +35,25 @@
         #p.jaxlibWithCuda
         p.jaxlib
         p.numpyro
+        p.tkinter
       ]);
 
     in rec {
       devShell = let
         # pkgs = import nixpkgs { inherit system; overlays = [ devshell.overlay ]; };
       in pkgs.devshell.mkShell {
-        devshell.packages = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs ]; # cudatoolkit
+        devshell.packages = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs tk ]; # cudatoolkit
         env = [
           { name = "HDF5_PLUGIN_PATH"; value = "${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib"; }
           { name = "PYTHONPATH"; eval = "$PRJ_ROOT/ONTlib:$PRJ_ROOT/IsotopeSep"; }
           { name = "MKL_NUM_THREADS"; value = 1; }
           { name = "OMP_NUM_THREADS"; value = 1; }
+          { name = "TK_LIBRARY"; value = "${pkgs.tk}/lib/${pkgs.tk.libPrefix}"; }
         ];
         imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
       };
       packages."vbz" = pkgs.ont_vbz_compression;
+      # TODO Generate a docker container suitable for podman. Should be built with cuda support.
     }; # eachSystem
 
     overlay = final: prev: rec {
