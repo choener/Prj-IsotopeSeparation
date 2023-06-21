@@ -46,8 +46,8 @@
         env = [
           { name = "HDF5_PLUGIN_PATH"; value = "${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib"; }
           { name = "PYTHONPATH"; eval = "$PRJ_ROOT/ONTlib:$PRJ_ROOT/IsotopeSep"; }
-          { name = "MKL_NUM_THREADS"; value = 1; }
-          { name = "OMP_NUM_THREADS"; value = 1; }
+          #{ name = "MKL_NUM_THREADS"; value = 1; }
+          #{ name = "OMP_NUM_THREADS"; value = 1; }
           { name = "TK_LIBRARY"; value = "${pkgs.tk}/lib/${pkgs.tk.libPrefix}"; }
         ];
         imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
@@ -58,14 +58,14 @@
 
     overlay = final: prev: rec {
       ont_vbz_compression = final.callPackage ./IsotopeSep/pkgs/vbz {};
-      python3 = prev.python3.override {
+      python310 = prev.python310.override {
         packageOverrides = self: super: {
           #numpyro = self.callPackage ./numpyro.nix {};
           jaxlib = self.jaxlibWithCuda;
 
         };
       };
-      python3Packages = python3.pkgs;
+      python310Packages = python310.pkgs;
     };
 
   in
