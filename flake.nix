@@ -4,7 +4,7 @@
   # This uses the new pymc 4.0.0! Be very careful updating the inputs!
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/master";
+    nixpkgs.url = "github:NixOS/nixpkgs/23.05";
     flake-utils.url = "github:numtide/flake-utils";
     devshell.url = "github:numtide/devshell";
   };
@@ -19,7 +19,7 @@
         inherit config;
         overlays = [ self.overlay devshell.overlays.default ];
       };
-      pyenv = pkgs.python3.withPackages (p: [
+      pyenv = pkgs.python310.withPackages (p: [
         p.arviz
         p.h5py
         p.joblib
