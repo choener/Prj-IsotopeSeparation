@@ -3,6 +3,9 @@ taubert-d2o/reads
 *.jpeg
 *.netcdf
 *.csv
+*.png
+FAR*
+store
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
