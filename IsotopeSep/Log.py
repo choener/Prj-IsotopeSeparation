@@ -1,8 +1,8 @@
 
 from random import shuffle
 from scipy import stats
-import aesara
-import aesara.tensor as at
+import pytensor
+import pytensor.tensor as at
 import arviz as az
 import logging as log
 import matplotlib.pyplot as plt
@@ -18,12 +18,17 @@ import Stats
 from Construct import SummaryStats
 import Kmer
 
+# Always use the same seed for reproducability. (We might want to make this a cmdline argument)
+
 RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
 #aesara.config.profile = True
 
+
+"""
+"""
 def genKcoords (k):
   assert (k>0)
   if k==1:
@@ -61,6 +66,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
 
   # The "madZ" values are all positive. We apply a Box-Cox transformation here
   meanmadz = df[df['madZ']>0]['madZ'].mean()
+  # TODO Try using .loc[row_indexer,col_indexer] = value instead
   df['madZ'] = df['madZ'].apply(lambda x: x if x > 0 else meanmadz)
   mads, lmbd = scipy.stats.boxcox(df['madZ'])
   df = df.assign(madZbc = mads)

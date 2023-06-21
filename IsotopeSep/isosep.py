@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from os.path import exists, isdir, isfile, basename, join, dirname
+from os.path import exists, isdir, isfile, join, dirname
 from pathlib import Path
 import argparse
 import logging
@@ -17,9 +17,11 @@ font = { 'size': 10 }
 #font = { 'weight': 'bold', 'size': 10 }
 pl.rc('font', **font)
 
-# Simple main system
-#
-# NOTE Reading 'reads' is costly only the first run, we pickles immediately, then re-use the pickles
+"""
+Simple main system. Sets up the command-line parser, reads input barcode data, and summary data.
+
+NOTE Reading 'reads' is costly only the first run, we pickles immediately, then re-use the pickles
+"""
 
 def main ():
   FORMAT = '%(asctime)s %(message)s'
@@ -52,8 +54,12 @@ def main ():
   if args.summarydirs is None:
     log.error('no summary.csv.zst given')
     exit(0)
-  # prepare construct
+  # prepare construct: we store an efficient pickle of the data we work with.
+  # TODO summarydirs should be a list of directories that can be handed over ...
   hashstore = sha512((args.kmer + str(args.summarydirs)).encode('utf-8')).hexdigest()
+  if not exists ("./store"):
+    log.error(f'store directory does not exist')
+    exit(0)
   storename = join("./store", hashstore + ".pickle")
   construct = Construct.Construct()
   for p,b in args.barcode:
@@ -79,14 +85,6 @@ def main ():
     construct.savegroups(storename)
 
   log.info(f'Model loaded with {len(construct)} reads')
-  # Log.runModel(args.kmer,construct.dfgroups[0])
-  #if (args.dataplots):
-  #  assert(construct.summaryStats is not None)
-  #  construct.summaryStats.postFile(args.outputdir)
-  #if args.train:
-  #  assert(construct.summaryStats is not None)
-  #if args.posteriorpredictive:
-  #  assert(construct.summaryStats is not None)
   if args.train or args.posteriorpredictive or args.priorpredictive:
     Log.runModel(args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples)
 
