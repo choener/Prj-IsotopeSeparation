@@ -90,26 +90,32 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     preMedian = pm.MutableData("preMedian", preMedian)
     medianZ  = pm.MutableData("medianZ", medianZ)
     madZbc   = pm.MutableData('madZbc', madZbc)
+    log.info(f'preMedian data shape: {preMedian.get_value().shape}')
+    log.info(f'medianZ data shape: {medianZ.get_value().shape}')
+    log.info(f'madZbc data shape: {madZbc.get_value().shape}')
 
     pScale    = pm.Beta('preScale', 0.5, 0.5)
     kScale    = pm.Normal('scale', 0, 1, dims='kmer')
     mScale    = pm.Normal('mad', 0, 1, dims='kmer')
     intercept = pm.Normal('intercept', 0, 10)
+    log.info(f'pScale shape: {pScale.shape}')
+    log.info(f'kScale shape: {kScale.shape}')
+    log.info(f'mScale shape: {mScale.shape}')
+    log.info(f'intercept shape: {intercept.shape}')
 
     #rowSum    =  pm.math.dot(medianZ, kScale)
     rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
     rowSum    += pm.math.dot(madZbc, mScale)
     predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
+    log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
 
-    log.info(f'preMedian data shape: {preMedian.get_value().shape}')
-    log.info(f'medianZ data shape: {medianZ.get_value().shape}')
-    log.info(f'madZbc data shape: {madZbc.get_value().shape}')
-    log.info(f'scale shape: {kScale.shape}')
-    log.info(f'obs shape: {rel.shape}')
-    log.info(f'obs: {rel}')
 
     #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
     obs = pm.Bernoulli("obs", p=predpcnt, observed=rel)
+    log.info(f'obs shape: {rel.shape}')
+    log.info(f'obs: {rel}')
+
+  # TODO profile model (especially for k=5)
 
   # prior predictive checks needs to be written down still
   if priorpredictive:
