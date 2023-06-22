@@ -79,6 +79,13 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   preMedian = df['pfxZ'].to_xarray()
   relTotalSize = rel.shape
 
+  # TODO hints on how to implement minibatches, which will require creating a single, huge matrix,
+  # then splitting again
+  #print(medianZ)
+  #print(medianZ.to_numpy())
+  #zzz = pm.Minibatch(medianZ.to_numpy(), batch_size=128)
+  #print(zzz.eval().shape)
+
   # prepare coords
   coords = { 'kmer': Kmer.gen(int(kmer))
            }
