@@ -38,6 +38,7 @@ def main ():
   parser.add_argument('--posteriorpredictive', default=False, action='store_true', help='enable Bayesian posterior predictive')
   parser.add_argument('--priorpredictive', default=False, action='store_true', help='Prior predictive')
   parser.add_argument('--maxsamples', default=None, help='restrict number of samples to train on')
+  parser.add_argument('--sampler', default="advi-nuts", choices=['advi','jax','nuts','advi-nuts'], help='choice of sampler')
   args = parser.parse_args()
   if args.logstderr is True:
     logging.getLogger().addHandler(logging.StreamHandler())
@@ -86,7 +87,7 @@ def main ():
 
   log.info(f'Model loaded with {len(construct)} reads')
   if args.train or args.posteriorpredictive or args.priorpredictive:
-    Log.runModel(args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples)
+    Log.runModel(args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples, sampler = args.sampler)
 
 
 

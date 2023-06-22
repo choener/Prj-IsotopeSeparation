@@ -48,7 +48,7 @@ def genKcoords (k):
 
 # TODO consider normalization
 
-def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None):
+def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax"):
 
   # prepare subsampling
   rels = df['rel'].value_counts()
@@ -77,10 +77,27 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   rel = df['rel'].to_xarray()[:,0]
   rel = rel.drop_vars('k')
   preMedian = df['pfxZ'].to_xarray()
+  relTotalSize = rel.shape
 
   # prepare coords
   coords = { 'kmer': Kmer.gen(int(kmer))
            }
+
+  # Minibatch in case of "advi" only
+  if sampler=="advi":
+    print(rel)
+#    preMedian = pm.Minibatch(preMedian, batch_size=500)
+#    medianZ = pm.Minibatch(medianZ, batch_size=500)
+#    madZbc = pm.Minibatch(madZbc, batch_size=500)
+    z = df['rel'].to_xarray()[:,0]
+    z = z.drop_vars('k')
+    print(">>>")
+    print(z)
+    print(type(z))
+    print("<<<")
+    zz = pm.Minibatch(z, batch_size=500)
+    print("^^^")
+
   #
   # prepare model
   #
@@ -111,7 +128,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
 
 
     #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
-    obs = pm.Bernoulli("obs", p=predpcnt, observed=rel)
+    obs = pm.Bernoulli("obs", p=predpcnt, observed=rel, total_size = relTotalSize)
     log.info(f'obs shape: {rel.shape}')
     log.info(f'obs: {rel}')
 
@@ -132,12 +149,24 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
 
   trace = az.InferenceData()
   if train:
+    # Switch between different options, jax or pymc nuts with advi
+    # TODO case between options
     with model:
       log.info('training model')
-      #trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
-      trace = pymc.sampling.jax.sample_numpyro_nuts(draws=1000, tune=1000, chains=2, postprocessing_backend='cpu')
+      trace = None
+      match sampler:
+        case "advi":
+          mean_field = pm.fit(method="advi")
+        case "jax":
+          trace = pymc.sampling.jax.sample_numpyro_nuts(draws=1000, tune=1000, chains=2, postprocessing_backend='cpu')
+        case "nuts":
+          trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
+        case "advi-nuts":
+          #mean_field = pm.fit(obj_optimizer=pm.adagrad_window(learning_rate=1e-2))
+          #mean_field = pm.fit(method="advi")
+          trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2, init="advi+adapt_diag")
+      assert trace is not None
       trace.to_netcdf(f'{kmer}-trace.netcdf')
-
       # TODO pickle the trace
   else:
     # TODO possibly load model
