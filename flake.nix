@@ -58,13 +58,37 @@
 
     overlay = final: prev: rec {
       ont_vbz_compression = final.callPackage ./IsotopeSep/pkgs/vbz {};
-      #python310 = prev.python310.override {
-      #  packageOverrides = self: super: {
+      python310 = prev.python310.override {
+        packageOverrides = self: super: {
       #    #numpyro = self.callPackage ./numpyro.nix {};
       #    jaxlib = self.jaxlibWithCuda;
-
-      #  };
-      #};
+          # NOTE to fix problems with Minibatch
+          pymc = super.pymc.overrideAttrs (attrs: rec {
+            version = "5.5.0";
+            src = final.fetchFromGitHub {
+              owner = "pymc-devs";
+              repo = attrs.pname;
+              rev = "refs/tags/v${version}";
+              hash = "sha256-naLOKz3w0K3psD2M/VQqjfn6aAR3OdLtbrjmpLXag8A=";
+            };
+          });
+          # NOTE required by pymc-5.5.0
+          pytensor = super.pytensor.overrideAttrs (attrs: rec {
+            version = "2.12.3";
+            src = final.fetchFromGitHub {
+              owner = "pymc-devs";
+              repo = attrs.pname;
+              rev = "refs/tags/rel-${version}";
+              hash = "sha256-jUCwWHqGYfc34wND5DBAoysUZcpyRr8JeDsNq0+YU9s=";
+            };
+            disabledTestPaths = [
+              "tests/scan/"
+              "tests/tensor/"
+              "tests/sparse/"
+            ];
+          });
+        };
+      };
       #python310Packages = python310.pkgs;
     };
 
