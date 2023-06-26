@@ -216,7 +216,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     # mad stuff
     madMeans = abs(trace.posterior["mad"].mean(("chain", "draw")))
     madZ = scaleMeans / trace.posterior["mad"].std(("chain","draw"))
-    sortedMadTrace = trace.posterior["mad"].sortby(scaleZ)
+    sortedMadTrace = trace.posterior["mad"].sortby(madZ)
     az.plot_forest(sortedMadTrace, var_names=['~p'])
     plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
     plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
