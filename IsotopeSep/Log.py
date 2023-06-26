@@ -94,6 +94,8 @@ def buildTensorVars(preMedian, medianZ, madZbc, obs):
 
 def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
 
+  fnamepfx = f'{kmer}-{sampler}'
+
   # prepare subsampling
   rels = df['rel'].value_counts()
   samplecount = int(min(rels) / (4**int(kmer)))
@@ -134,20 +136,6 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   coords = { 'kmer': Kmer.gen(int(kmer))
            }
 
-  # Minibatch in case of "advi" only
-  if sampler=="advi":
-    print(rel)
-#    preMedian = pm.Minibatch(preMedian, batch_size=500)
-#    medianZ = pm.Minibatch(medianZ, batch_size=500)
-#    madZbc = pm.Minibatch(madZbc, batch_size=500)
-    z = df['rel'].to_xarray()[:,0]
-    z = z.drop_vars('k')
-    print(">>>")
-    print(z)
-    print(type(z))
-    print("<<<")
-    zz = pm.Minibatch(z, batch_size=500)
-    print("^^^")
   nmPreMedian, nmMedianZ, nmMadZbc, nmRel = buildTensorVars(preMedian, medianZ, madZbc, rel)
 
 
@@ -179,13 +167,14 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
         model = buildModel(coords, mbPreMedian, mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
         # run the model with mini batches
         with model:
-          mf : pm.MeanField = pm.fit(obj_optimizer=pm.adagrad_window(learning_rate=1e-2))
-          trace = mf.sample(draws=1000)
+          mf : pm.MeanField = pm.fit(n=50000, obj_optimizer=pm.adagrad_window(learning_rate=1e-2))
+          trace = mf.sample(draws=5000)
       case "advi":
-        model = buildModel(coords, mbPreMedian, mbMedianZ, mbMadZbc, mbRel, kmer)
+        mbPreMedian, mbMedianZ, mbMadZbc, mbRel = pm.Minibatch(nmPreMedian, nmMedianZ, nmMadZbc, nmRel, batch_size=batchSz)
+        model = buildModel(coords, mbPreMedian, mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
         with model:
-          mf = pm.fit(method="advi")
-          trace = mf.sample(draws=1000)
+          mf = pm.fit(n=50000, method="advi")
+          trace = mf.sample(draws=5000)
       case "jax":
         model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer)
         with model:
@@ -198,26 +187,40 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
         with model:
           trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2, init="advi+adapt_diag")
     assert trace is not None
-    trace.to_netcdf(f'{kmer}-trace.netcdf')
+    trace.to_netcdf(f'{fnamepfx}-trace.netcdf')
     # TODO pickle the trace
   else:
     # TODO possibly load model
-    trace = trace.from_netcdf(f'{kmer}-trace.netcdf')
+    trace = trace.from_netcdf(f'{fnamepfx}-trace.netcdf')
     pass
   # create plot(s); later guard via switch
   if True:
     # plot only subset?
     az.plot_trace(trace, compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
-    plt.savefig(f'{kmer}-trace.png')
-    plt.savefig(f'{kmer}-trace.pdf')
+    plt.savefig(f'{fnamepfx}-trace.png')
+    plt.savefig(f'{fnamepfx}-trace.pdf')
     plt.close()
     az.plot_forest(trace, var_names=['~p'])
-    plt.savefig(f'{kmer}-forest.png')
-    plt.savefig(f'{kmer}-forest.pdf')
+    plt.savefig(f'{fnamepfx}-forest.png')
+    plt.savefig(f'{fnamepfx}-forest.pdf')
     plt.close()
-    scaleMeans = trace.posterior["scale"].mean(("chain", "draw"))
-    sortedTrace = trace.posterior["scale"].sortby(scaleMeans)
     print(az.summary(trace, var_names=['~p'], round_to=2))
+    # scale stuff
+    scaleMeans = abs(trace.posterior["scale"].mean(("chain", "draw")))
+    scaleZ = scaleMeans / trace.posterior["scale"].std(("chain","draw"))
+    sortedScaleTrace = trace.posterior["scale"].sortby(scaleZ)
+    az.plot_forest(sortedScaleTrace, var_names=['~p'])
+    plt.savefig(f'{fnamepfx}-zsortedforest-scale.png')
+    plt.savefig(f'{fnamepfx}-zsortedforest-scale.pdf')
+    print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
+    # mad stuff
+    madMeans = abs(trace.posterior["mad"].mean(("chain", "draw")))
+    madZ = scaleMeans / trace.posterior["mad"].std(("chain","draw"))
+    sortedMadTrace = trace.posterior["mad"].sortby(scaleZ)
+    az.plot_forest(sortedMadTrace, var_names=['~p'])
+    plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
+    plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
+    print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
   # TODO only plots subset of figures, if there are too many subfigures
@@ -225,12 +228,12 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   #g = medianZ.get_value().shape[1]
   #g = 1 + int(np.sqrt(g+2))
   az.plot_posterior(trace, var_names=['intercept', 'preScale']) # , grid=(g,g))
-  plt.savefig(f'{kmer}-posterior.png')
-  plt.savefig(f'{kmer}-posterior.pdf')
+  plt.savefig(f'{fnamepfx}-posterior.png')
+  plt.savefig(f'{fnamepfx}-posterior.pdf')
   plt.close()
   #az.plot_posterior(trace, var_names=['~p', '~intercept', '~preScale'])
-  #plt.savefig(f'{kmer}-posterior-all.png')
-  #plt.savefig(f'{kmer}-posterior-all.pdf')
+  #plt.savefig(f'{fnamepfx}-posterior-all.png')
+  #plt.savefig(f'{fnamepfx}-posterior-all.pdf')
   #plt.close()
 
   if posteriorpredictive:
@@ -273,8 +276,8 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       ax.set_ylabel('p (Predicted D2O)')
       ax.set_title('Posterior Predictive Error (±σ)')
       ax.legend(fontsize=10, frameon=True, framealpha=0.5)
-      plt.savefig(f'{kmer}-poos.png')
-      plt.savefig(f'{kmer}-poos.pdf')
+      plt.savefig(f'{fnamepfx}-poos.png')
+      plt.savefig(f'{fnamepfx}-poos.pdf')
       plt.close()
       # finally draw for each element, how good the prediction went.
       # TODO should have multiple lines, depending on 0%, 100%, etc
@@ -307,7 +310,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
       ax.set_title('Posterior Predictive Error (per sample)')
       ax.legend(fontsize=10, frameon=True, framealpha=0.5)
       # TODO vertical line that is annotated with percentage "good"
-      plt.savefig(f'{kmer}-order-qos.png')
-      plt.savefig(f'{kmer}-order-qos.pdf')
+      plt.savefig(f'{fnamepfx}-order-qos.png')
+      plt.savefig(f'{fnamepfx}-order-qos.pdf')
       plt.close()
 

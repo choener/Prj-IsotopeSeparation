@@ -68,17 +68,25 @@ def main ():
   if exists(storename):
     construct.loadgroups(storename)
   else:
+    totI = 0
+    curI = 0
     for p in args.summarydirs:
       log.info(f'PATH" {p}')
       if isfile(p):
-        log.info(f'FILE PATH" {p}')
+        totI += 1
+        curI += 1
+        log.info(f'[{curI} / {totI}] FILE PATH" {p}')
         df = pd.read_csv(p)
         rds = pd.read_csv(join(dirname(p),"reads.csv.zst"))
         construct.addkmerdf(args.kmer, df, rds)
       if isdir(p):
-        log.info(f'DIRECTORY PATH" {p}')
-        for rname in Path(p).rglob(f'summary.csv.zst'):
-          log.info(f'FILE PATH" {rname}')
+        targets = list(Path(p).rglob(f'summary.csv.zst'))
+        totI += len(targets)
+        log.info(f'[{curI} / {totI}] DIRECTORY PATH" {p}')
+        # TODO Could use parallelization
+        for rname in targets:
+          curI += 1
+          log.info(f'[{curI} / {totI}] FILE PATH" {rname}')
           df = pd.read_csv(rname)
           rds = pd.read_csv(join(dirname(rname),"reads.csv.zst"))
           construct.addkmerdf(args.kmer, df, rds)
