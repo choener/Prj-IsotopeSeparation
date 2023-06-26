@@ -38,7 +38,7 @@ def main ():
   parser.add_argument('--posteriorpredictive', default=False, action='store_true', help='enable Bayesian posterior predictive')
   parser.add_argument('--priorpredictive', default=False, action='store_true', help='Prior predictive')
   parser.add_argument('--maxsamples', default=None, help='restrict number of samples to train on')
-  parser.add_argument('--sampler', default="advi-nuts", choices=['advi','jax','nuts','advi-nuts'], help='choice of sampler')
+  parser.add_argument('--sampler', default="advi-nuts", choices=['adagrad','advi','jax','nuts','advi-nuts'], help='choice of sampler')
   args = parser.parse_args()
   if args.logstderr is True:
     logging.getLogger().addHandler(logging.StreamHandler())

@@ -38,6 +38,50 @@ def genKcoords (k):
     sk = genKcoords(k-1)
     return [ s+ss for s in s1 for ss in sk ]
 
+"""
+Builds the model. Building is a bit abstracted to simplify handing over mini batches for
+optimization.
+"""
+def buildModel(coords, preMedian, medianZ, madZbc, obs, kmer, totalSz, batchSz = 1000):
+  with pm.Model(coords = coords) as model:
+    # data we want to be able to swap for posterior predictive
+    # access via get_value() / set_value()
+    #preMedian = pm.MutableData("preMedian", preMedian)
+    #medianZ  = pm.MutableData("medianZ", medianZ)
+    #madZbc   = pm.MutableData('madZbc', madZbc)
+    #log.info(f'preMedian data shape: {preMedian.get_value().shape}')
+    #log.info(f'medianZ data shape: {medianZ.get_value().shape}')
+    #log.info(f'madZbc data shape: {madZbc.get_value().shape}')
+
+    pScale    = pm.Beta('preScale', 0.5, 0.5)
+    kScale    = pm.Normal('scale', 0, 1, dims='kmer')
+    mScale    = pm.Normal('mad', 0, 1, dims='kmer')
+    intercept = pm.Normal('intercept', 0, 10)
+    log.info(f'pScale shape: {pScale.shape}')
+    log.info(f'kScale shape: {kScale.shape}')
+    log.info(f'mScale shape: {mScale.shape}')
+    log.info(f'intercept shape: {intercept.shape}')
+
+    #rowSum    =  pm.math.dot(medianZ, kScale)
+    rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
+    rowSum    += pm.math.dot(madZbc, mScale)
+    predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
+    log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
+
+
+    #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
+    obs = pm.Bernoulli("obs", p=predpcnt, observed=obs, total_size = totalSz)
+    log.info(f'obs shape: {obs.shape}')
+    log.info(f'obs: {obs}')
+  return model
+
+def buildTensorVars(preMedian, medianZ, madZbc, obs):
+  nmPreMedian = preMedian.to_numpy()
+  nmMedianZ = medianZ.to_numpy()
+  nmMadZbc = madZbc.to_numpy()
+  nmObs = obs.to_numpy()
+  return nmPreMedian, nmMedianZ, nmMadZbc, nmObs
+
 # The holy model:
 # - logistic regression on 0, 30, 100 % deuterium; i.e 0; 0.3; 1.0
 # - individual data can be pulled up or down by the pre-median calibration
@@ -48,7 +92,7 @@ def genKcoords (k):
 
 # TODO consider normalization
 
-def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax"):
+def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
 
   # prepare subsampling
   rels = df['rel'].value_counts()
@@ -104,77 +148,58 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     print("<<<")
     zz = pm.Minibatch(z, batch_size=500)
     print("^^^")
+  nmPreMedian, nmMedianZ, nmMadZbc, nmRel = buildTensorVars(preMedian, medianZ, madZbc, rel)
 
-  #
-  # prepare model
-  #
-  with pm.Model(coords = coords) as model:
-    # data we want to be able to swap for posterior predictive
-    # access via get_value() / set_value()
-    preMedian = pm.MutableData("preMedian", preMedian)
-    medianZ  = pm.MutableData("medianZ", medianZ)
-    madZbc   = pm.MutableData('madZbc', madZbc)
-    log.info(f'preMedian data shape: {preMedian.get_value().shape}')
-    log.info(f'medianZ data shape: {medianZ.get_value().shape}')
-    log.info(f'madZbc data shape: {madZbc.get_value().shape}')
-
-    pScale    = pm.Beta('preScale', 0.5, 0.5)
-    kScale    = pm.Normal('scale', 0, 1, dims='kmer')
-    mScale    = pm.Normal('mad', 0, 1, dims='kmer')
-    intercept = pm.Normal('intercept', 0, 10)
-    log.info(f'pScale shape: {pScale.shape}')
-    log.info(f'kScale shape: {kScale.shape}')
-    log.info(f'mScale shape: {mScale.shape}')
-    log.info(f'intercept shape: {intercept.shape}')
-
-    #rowSum    =  pm.math.dot(medianZ, kScale)
-    rowSum    =  pm.math.dot(medianZ - pScale * preMedian, kScale)
-    rowSum    += pm.math.dot(madZbc, mScale)
-    predpcnt  = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
-    log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
-
-
-    #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
-    obs = pm.Bernoulli("obs", p=predpcnt, observed=rel, total_size = relTotalSize)
-    log.info(f'obs shape: {rel.shape}')
-    log.info(f'obs: {rel}')
 
   # TODO profile model (especially for k=5)
 
   # prior predictive checks needs to be written down still
-  if priorpredictive:
-    pass
-    #with model:
-    #  log.info('running prior predictive model')
-    #  trace = pm.sample_prior_predictive()
-    #  _, ax = plt.subplots()
-    #  x = xr.DataArray(np.linspace(-5,5,10), dims=["plot_dim"])
-    #  prior = trace.prior
-    #  ax.plot(x, x)
-    #  plt.savefig(f'{kmer}-prior-predictive.jpeg')
-    #  plt.close()
+  #if priorpredictive:
+  #  pass
+  #  #with model:
+  #  #  log.info('running prior predictive model')
+  #  #  trace = pm.sample_prior_predictive()
+  #  #  _, ax = plt.subplots()
+  #  #  x = xr.DataArray(np.linspace(-5,5,10), dims=["plot_dim"])
+  #  #  prior = trace.prior
+  #  #  ax.plot(x, x)
+  #  #  plt.savefig(f'{kmer}-prior-predictive.jpeg')
+  #  #  plt.close()
 
   trace = az.InferenceData()
   if train:
     # Switch between different options, jax or pymc nuts with advi
-    # TODO case between options
-    with model:
-      log.info('training model')
-      trace = None
-      match sampler:
-        case "advi":
-          mean_field = pm.fit(method="advi")
-        case "jax":
+    log.info('training model')
+    model = None
+    mf = None # mean field
+    trace = None
+    match sampler:
+      case "adagrad":
+        mbPreMedian, mbMedianZ, mbMadZbc, mbRel = pm.Minibatch(nmPreMedian, nmMedianZ, nmMadZbc, nmRel, batch_size=batchSz)
+        model = buildModel(coords, mbPreMedian, mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
+        # run the model with mini batches
+        with model:
+          mf : pm.MeanField = pm.fit(obj_optimizer=pm.adagrad_window(learning_rate=1e-2))
+          trace = mf.sample(draws=1000)
+      case "advi":
+        model = buildModel(coords, mbPreMedian, mbMedianZ, mbMadZbc, mbRel, kmer)
+        with model:
+          mf = pm.fit(method="advi")
+          trace = mf.sample(draws=1000)
+      case "jax":
+        model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer)
+        with model:
           trace = pymc.sampling.jax.sample_numpyro_nuts(draws=1000, tune=1000, chains=2, postprocessing_backend='cpu')
-        case "nuts":
-          trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
-        case "advi-nuts":
-          #mean_field = pm.fit(obj_optimizer=pm.adagrad_window(learning_rate=1e-2))
-          #mean_field = pm.fit(method="advi")
+      case "nuts":
+        trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2)
+      case "advi-nuts":
+        model = buildModel(coords, nmPreMedian, nmMedianZ, nmMadZbc, nmRel, kmer, nmRel.shape)
+        #model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer, rel.shape)
+        with model:
           trace = pm.sample(1000, return_inferencedata=True, tune=1000, chains=2, cores=2, init="advi+adapt_diag")
-      assert trace is not None
-      trace.to_netcdf(f'{kmer}-trace.netcdf')
-      # TODO pickle the trace
+    assert trace is not None
+    trace.to_netcdf(f'{kmer}-trace.netcdf')
+    # TODO pickle the trace
   else:
     # TODO possibly load model
     trace = trace.from_netcdf(f'{kmer}-trace.netcdf')
@@ -207,6 +232,9 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   #plt.close()
 
   if posteriorpredictive:
+    # rebuild the model with full data!
+    #model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer, rel.shape)
+    model = buildModel(coords, nmPreMedian, nmMedianZ, nmMadZbc, nmRel, kmer, nmRel.shape)
     with model:
       log.info('posterior predictive run')
       assert trace is not None
