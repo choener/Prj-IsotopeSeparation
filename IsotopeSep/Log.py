@@ -215,6 +215,8 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     plt.savefig(f'{kmer}-forest.png')
     plt.savefig(f'{kmer}-forest.pdf')
     plt.close()
+    scaleMeans = trace.posterior["scale"].mean(("chain", "draw"))
+    sortedTrace = trace.posterior["scale"].sortby(scaleMeans)
     print(az.summary(trace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
