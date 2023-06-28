@@ -11,6 +11,8 @@ import pymc as pm
 import scipy
 import xarray as xr
 import random
+import seaborn as sb
+import pandas as pd
 
 import pymc.sampling.jax
 
@@ -157,7 +159,7 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
   trace = az.InferenceData()
   if train:
     # Switch between different options, jax or pymc nuts with advi
-    log.info('training model')
+    log.info('training model RUN')
     model = None
     mf = None # mean field
     trace = None
@@ -189,18 +191,41 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     assert trace is not None
     trace.to_netcdf(f'{fnamepfx}-trace.netcdf')
     # TODO pickle the trace
+    log.info('training model DONE')
   else:
     # TODO possibly load model
+    log.info('training model LOAD')
     trace = trace.from_netcdf(f'{fnamepfx}-trace.netcdf')
+    log.info('training model DONE')
     pass
+  #
+  # Determine the importance of positions / nucleotides
+  #
+  log.info('position importance')
+  positions = pd.DataFrame(data=0, columns=["A","C","G","T"], index=list(range(1,int(kmer)+1)))
+  posData = abs(trace.posterior["scale"].mean(("chain", "draw")))
+  posData = posData
+  print(posData)
+  for cell in posData:
+    nucs = cell["kmer"].item()
+    v = float(cell.values)
+    for i,n in enumerate(nucs):
+      positions.at[i+1,n] = positions.at[i+1,n] + (v / 4**(float(kmer)-1))
+  log.info(positions)
+  sb.heatmap(positions, annot=True, fmt=".2f", annot_kws={"size": 20})
+  plt.savefig(f'{fnamepfx}-positionimportance.png')
+  plt.savefig(f'{fnamepfx}-positionimportance.pdf')
+  plt.close()
+  #bang
   # create plot(s); later guard via switch
   if True:
     # plot only subset?
-    az.plot_trace(trace, compact=True, combined=True, var_names=['~p']) # 'intercept', 'pScale', 'scale'+kmer])
+    ySize = min(256, 4**float(kmer))
+    az.plot_trace(trace, compact=True, combined=True, var_names=['~p'])
     plt.savefig(f'{fnamepfx}-trace.png')
     plt.savefig(f'{fnamepfx}-trace.pdf')
     plt.close()
-    az.plot_forest(trace, var_names=['~p'])
+    az.plot_forest(trace, var_names=['~p'], figsize=(6,ySize))
     plt.savefig(f'{fnamepfx}-forest.png')
     plt.savefig(f'{fnamepfx}-forest.pdf')
     plt.close()
@@ -209,17 +234,31 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     scaleMeans = abs(trace.posterior["scale"].mean(("chain", "draw")))
     scaleZ = scaleMeans / trace.posterior["scale"].std(("chain","draw"))
     sortedScaleTrace = trace.posterior["scale"].sortby(scaleZ)
-    az.plot_forest(sortedScaleTrace, var_names=['~p'])
+    az.plot_forest(sortedScaleTrace, var_names=['~p'], figsize=(6,ySize))
     plt.savefig(f'{fnamepfx}-zsortedforest-scale.png')
     plt.savefig(f'{fnamepfx}-zsortedforest-scale.pdf')
+    plt.close()
+    print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
+    sortedScaleTrace = trace.posterior["scale"].sortby(scaleMeans)
+    az.plot_forest(sortedScaleTrace, var_names=['~p'], figsize=(6,ySize))
+    plt.savefig(f'{fnamepfx}-meansortedforest-scale.png')
+    plt.savefig(f'{fnamepfx}-meansortedforest-scale.pdf')
+    plt.close()
     print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
     # mad stuff
     madMeans = abs(trace.posterior["mad"].mean(("chain", "draw")))
-    madZ = scaleMeans / trace.posterior["mad"].std(("chain","draw"))
+    madZ = madMeans / trace.posterior["mad"].std(("chain","draw"))
     sortedMadTrace = trace.posterior["mad"].sortby(madZ)
-    az.plot_forest(sortedMadTrace, var_names=['~p'])
+    az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
     plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
     plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
+    plt.close()
+    print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
+    sortedMadTrace = trace.posterior["mad"].sortby(madMeans)
+    az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
+    plt.savefig(f'{fnamepfx}-meansortedforest-mad.png')
+    plt.savefig(f'{fnamepfx}-meansortedforest-mad.pdf')
+    plt.close()
     print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
@@ -241,13 +280,14 @@ def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive
     #model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer, rel.shape)
     model = buildModel(coords, nmPreMedian, nmMedianZ, nmMadZbc, nmRel, kmer, nmRel.shape)
     with model:
-      log.info('posterior predictive run')
+      log.info('posterior predictive run START')
       assert trace is not None
       # TODO
       # Normally, we should now go and set new data via
       # pm.set_data({"pred": out-of-sample-data})
       # but we can pickle the trace, then reload with new data
       trace = pm.sample_posterior_predictive(trace, var_names=['p', 'obs'], return_inferencedata=True, extend_inferencedata=True, predictions=True)
+      log.info('posterior predicte run DONE')
       print(trace)
       # important: contains "p"
       mpreds = trace['predictions']
