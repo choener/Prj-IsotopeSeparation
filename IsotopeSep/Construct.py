@@ -13,7 +13,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import seaborn as sb
-import scipy
+import zstandard
 
 import Fast5
 import Stats
@@ -100,11 +100,11 @@ class Construct:
 
   def savegroups(self, fname):
     sing = pd.concat(self.dfgroups)
-    with open(fname, 'wb') as f:
+    with zstandard.open(fname, 'wb') as f:
       pickle.dump(sing, f)
 
   def loadgroups(self, fname):
-    with open(fname, 'rb') as f:
+    with zstandard.open(fname, 'rb') as f:
       sing = pickle.load(f)
     self.dfgroups = [sing]
 

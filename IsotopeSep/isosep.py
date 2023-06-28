@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-from os.path import exists, isdir, isfile, join, dirname
-from pathlib import Path
+from os.path import exists, isfile, join, dirname
 import argparse
 import logging
 import logging as log
@@ -9,6 +8,7 @@ import matplotlib as pl
 import pandas as pd
 import pymc as mc
 from hashlib import sha512
+import glob
 
 import Construct
 import Log
@@ -16,6 +16,7 @@ import Log
 font = { 'size': 10 }
 #font = { 'weight': 'bold', 'size': 10 }
 pl.rc('font', **font)
+
 
 """
 Simple main system. Sets up the command-line parser, reads input barcode data, and summary data.
@@ -31,7 +32,7 @@ def main ():
   parser.add_argument('--logstderr', action='store_true', default=False, help='log to stderr as well')
   parser.add_argument('--barcode', action='append', nargs='+', help='given as PERCENT FILE')
   parser.add_argument('--outputdir', default="tmp", help='where to write output and state data to')
-  parser.add_argument('--summarydirs', action='append', help='directories where read pickles are located, or individual read pickles')
+  parser.add_argument('--summarydirs', nargs='+', action='append', help='directories where read pickles are located, or individual read pickles')
   parser.add_argument('--dataplots', default=False, action='store_true', help='actually run plots')
   parser.add_argument('--kmer', default='1', help='k-mer length: 1, 3, 5 are assumed available')
   parser.add_argument('--train', default=False, action='store_true', help='enable Bayesian training')
@@ -55,41 +56,36 @@ def main ():
   if args.summarydirs is None:
     log.error('no summary.csv.zst given')
     exit(0)
+  # collect all paths that contain the necessary files.
+  inputDirs = []
+  for ps in args.summarydirs:
+    for p in ps:
+      for d in glob.glob(join(p, '**/reads.csv.zst'), recursive=True):
+        act = dirname(d)
+        if isfile(join(act,'summary.csv.zst')):
+          inputDirs.append(act)
+  inputDirs.sort()
   # prepare construct: we store an efficient pickle of the data we work with.
   # TODO summarydirs should be a list of directories that can be handed over ...
-  hashstore = sha512((args.kmer + str(args.summarydirs)).encode('utf-8')).hexdigest()
+  hashstore = sha512((args.kmer + str(inputDirs)).encode('utf-8')).hexdigest()
   if not exists ("./store"):
     log.error(f'store directory does not exist')
     exit(0)
-  storename = join("./store", hashstore + ".pickle")
+  storename = join("./store", hashstore + ".pickle.zst")
   construct = Construct.Construct()
   for p,b in args.barcode:
     construct.addbarcode(p,b)
   if exists(storename):
     construct.loadgroups(storename)
   else:
-    totI = 0
     curI = 0
-    for p in args.summarydirs:
-      log.info(f'PATH" {p}')
-      if isfile(p):
-        totI += 1
-        curI += 1
-        log.info(f'[{curI} / {totI}] FILE PATH" {p}')
-        df = pd.read_csv(p)
-        rds = pd.read_csv(join(dirname(p),"reads.csv.zst"))
-        construct.addkmerdf(args.kmer, df, rds)
-      if isdir(p):
-        targets = list(Path(p).rglob(f'summary.csv.zst'))
-        totI += len(targets)
-        log.info(f'[{curI} / {totI}] DIRECTORY PATH" {p}')
-        # TODO Could use parallelization
-        for rname in targets:
-          curI += 1
-          log.info(f'[{curI} / {totI}] FILE PATH" {rname}')
-          df = pd.read_csv(rname)
-          rds = pd.read_csv(join(dirname(rname),"reads.csv.zst"))
-          construct.addkmerdf(args.kmer, df, rds)
+    totI = len(inputDirs)
+    for p in inputDirs:
+      curI += 1
+      log.info(f'[{curI} / {totI}] FILE PATH" {p}')
+      df = pd.read_csv(join(p,'summary.csv.zst'))
+      rds = pd.read_csv(join(p,"reads.csv.zst"))
+      construct.addkmerdf(args.kmer, df, rds)
     construct.mergegroups()
     construct.savegroups(storename)
 

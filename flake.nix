@@ -36,6 +36,7 @@
         p.jaxlib
         p.numpyro
         p.tkinter
+        p.zstandard
       ]);
 
     in rec {
