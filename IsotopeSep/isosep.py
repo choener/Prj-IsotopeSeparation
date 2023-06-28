@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from os.path import exists, isfile, join, dirname
+from os.path import exists, isfile, join, dirname, split
 import argparse
 import logging
 import logging as log
@@ -66,7 +66,10 @@ def main ():
           inputDirs.append(act)
   inputDirs.sort()
   # prepare construct: we store an efficient pickle of the data we work with.
-  # TODO summarydirs should be a list of directories that can be handed over ...
+  # NOTE the 2nd sorting, in case the prefix of the inputDirs is different.
+  # NOTE the assumption that the suffix is unique
+  hashDirs = [ split(x)[1] for x in inputDirs ]
+  hashDirs.sort()
   hashstore = sha512((args.kmer + str(inputDirs)).encode('utf-8')).hexdigest()
   if not exists ("./store"):
     log.error(f'store directory does not exist')
@@ -91,7 +94,7 @@ def main ():
 
   log.info(f'Model loaded with {len(construct)} reads')
   if args.train or args.posteriorpredictive or args.priorpredictive:
-    Log.runModel(args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples, sampler = args.sampler)
+    Log.runModel(args.outputdir, args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples, sampler = args.sampler)
 
 
 

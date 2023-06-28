@@ -94,9 +94,9 @@ def buildTensorVars(preMedian, medianZ, madZbc, obs):
 
 # TODO consider normalization
 
-def runModel(kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
+def runModel(outputDir, kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
 
-  fnamepfx = f'{kmer}-{sampler}'
+  fnamepfx = os.join(outputDir, f'{kmer}-{sampler}')
 
   # prepare subsampling
   rels = df['rel'].value_counts()
