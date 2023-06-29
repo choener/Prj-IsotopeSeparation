@@ -13,6 +13,7 @@ import xarray as xr
 import random
 import seaborn as sb
 import pandas as pd
+import os.path
 
 import pymc.sampling.jax
 
@@ -96,7 +97,7 @@ def buildTensorVars(preMedian, medianZ, madZbc, obs):
 
 def runModel(outputDir, kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
 
-  fnamepfx = os.join(outputDir, f'{kmer}-{sampler}')
+  fnamepfx = os.path.join(outputDir, f'{kmer}-{sampler}')
 
   # prepare subsampling
   rels = df['rel'].value_counts()
@@ -195,7 +196,11 @@ def runModel(outputDir, kmer, df, train = True, posteriorpredictive = True, prio
   else:
     # TODO possibly load model
     log.info('training model LOAD')
-    trace = trace.from_netcdf(f'{fnamepfx}-trace.netcdf')
+    try:
+      trace = trace.from_netcdf(f'{fnamepfx}-trace.netcdf')
+    except OSError:
+      log.info(f'Missing netcdf file: {fnamepfx}-trace.netcdf not found')
+      sys.exit(1)
     log.info('training model DONE')
     pass
   #

@@ -9,6 +9,7 @@ import pandas as pd
 import pymc as mc
 from hashlib import sha512
 import glob
+import gc
 
 import Construct
 import Log
@@ -70,7 +71,7 @@ def main ():
   # NOTE the assumption that the suffix is unique
   hashDirs = [ split(x)[1] for x in inputDirs ]
   hashDirs.sort()
-  hashstore = sha512((args.kmer + str(inputDirs)).encode('utf-8')).hexdigest()
+  hashstore = sha512((args.kmer + str(hashDirs)).encode('utf-8')).hexdigest()
   if not exists ("./store"):
     log.error(f'store directory does not exist')
     exit(0)
@@ -89,8 +90,11 @@ def main ():
       df = pd.read_csv(join(p,'summary.csv.zst'))
       rds = pd.read_csv(join(p,"reads.csv.zst"))
       construct.addkmerdf(args.kmer, df, rds)
+    gc.collect()
     construct.mergegroups()
+    gc.collect()
     construct.savegroups(storename)
+    gc.collect()
 
   log.info(f'Model loaded with {len(construct)} reads')
   if args.train or args.posteriorpredictive or args.priorpredictive:
