@@ -91,9 +91,12 @@ def main ():
       rds = pd.read_csv(join(p,"reads.csv.zst"))
       construct.addkmerdf(args.kmer, df, rds)
     gc.collect()
+    log.info('merging groups')
     construct.mergegroups()
     gc.collect()
+    log.info('saving groups to store')
     construct.savegroups(storename)
+    log.info('finished saving groups to store')
     gc.collect()
 
   log.info(f'Model loaded with {len(construct)} reads')
