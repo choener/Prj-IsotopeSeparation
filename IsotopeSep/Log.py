@@ -95,10 +95,17 @@ def buildTensorVars(preMedian, medianZ, madZbc, obs):
 # - possibly set sigma to mad
 
 # TODO consider normalization
+# TODO make sure to select the correct "rel"s
 
-def runModel(outputDir, kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
+def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredictive = True, priorpredictive = True, maxsamples = None, sampler = "jax", batchSz=1000):
 
   fnamepfx = os.path.join(outputDir, f'{kmer}-{sampler}')
+
+  # Perform set selection
+  print(df['rel'])
+  bang
+  df = df[df['rel']==0.0 or df['rel']==0.3]
+  # update 'rel' of 0.3 to 1.0 for correct Bernoulli
 
   # prepare subsampling
   rels = df['rel'].value_counts()

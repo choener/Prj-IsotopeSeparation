@@ -41,6 +41,8 @@ def main ():
   parser.add_argument('--priorpredictive', default=False, action='store_true', help='Prior predictive')
   parser.add_argument('--maxsamples', default=None, help='restrict number of samples to train on')
   parser.add_argument('--sampler', default="advi-nuts", choices=['adagrad','advi','jax','nuts','advi-nuts'], help='choice of sampler')
+  parser.add_argument('--zero', default=0.0, help='relative abundance mapped to False')
+  parser.add_argument('--one', default=1.0, help='relative abundance mapped to True')
   args = parser.parse_args()
   if args.logstderr is True:
     logging.getLogger().addHandler(logging.StreamHandler())
@@ -100,8 +102,9 @@ def main ():
     gc.collect()
 
   log.info(f'Model loaded with {len(construct)} reads')
+  # TODO make sure to select correct targets
   if args.train or args.posteriorpredictive or args.priorpredictive:
-    Log.runModel(args.outputdir, args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples, sampler = args.sampler)
+    Log.runModel(args.zero, args.one, args.outputdir, args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples, sampler = args.sampler)
 
 
 
