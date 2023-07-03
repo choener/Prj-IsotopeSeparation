@@ -46,7 +46,7 @@ def genKcoords (k):
 Builds the model. Building is a bit abstracted to simplify handing over mini batches for
 optimization.
 """
-def buildModel(coords, preMedian, medianZ, madZbc, obs, kmer, totalSz, batchSz = 1000):
+def buildModel(coords, preMedian, medianZ, madZbc, observed, kmer, totalSz, batchSz = 1000):
   with pm.Model(coords = coords) as model:
     # data we want to be able to swap for posterior predictive
     # access via get_value() / set_value()
@@ -74,7 +74,8 @@ def buildModel(coords, preMedian, medianZ, madZbc, obs, kmer, totalSz, batchSz =
 
 
     #obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
-    obs = pm.Bernoulli("obs", p=predpcnt, observed=obs, total_size = totalSz)
+    # BUG claim of imputed values for observed. Why?
+    obs = pm.Bernoulli("obs", p=predpcnt, observed=observed, total_size = totalSz)
     log.info(f'obs shape: {obs.shape}')
     log.info(f'obs: {obs}')
   return model
@@ -106,6 +107,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   df['rel'].loc[df['rel']==float(zeroRel)] = 0
   df['rel'].loc[df['rel']==float(oneRel)] = 1
   df['rel']
+  print('ZERO', df[df['rel']==0])
+  print('ONE', df[df['rel']==1])
 
   # prepare subsampling
   rels = df['rel'].value_counts()
@@ -119,7 +122,6 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
     sampledreads.extend(cands[0:samplecount])
   log.info(f'subsampled {samplecount} reads for each d2o level')
   df = df[df.droplevel('k').index.isin(sampledreads)]
-  print(df)
 
   # The "madZ" values are all positive. We apply a Box-Cox transformation here
   meanmadz = df[df['madZ']>0]['madZ'].mean()
@@ -127,6 +129,18 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   df['madZ'] = df['madZ'].apply(lambda x: x if x > 0 else meanmadz)
   mads, lmbd = scipy.stats.boxcox(df['madZ'])
   df = df.assign(madZbc = mads)
+  #
+  # NAN tests
+  #print(len(df))
+  #df = df[~np.isnan(df).any(axis=1)]
+  #print(len(df))
+  #df = df[~np.isinf(df).any(axis=1)]
+  #print(len(df))
+
+  # determine "nan" reads!
+  nans = np.isnan(df['rel'].to_numpy())
+  print('nans', len(df[nans]))
+  bang
 
   # transform the column into the correct matrix form
   medianZ = df['medianZ'].to_xarray()
@@ -291,6 +305,9 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   if posteriorpredictive:
     # rebuild the model with full data!
     #model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer, rel.shape)
+    print(nmPreMedian.shape)
+    print(nmMedianZ.shape)
+    print(nmRel.shape)
     model = buildModel(coords, nmPreMedian, nmMedianZ, nmMadZbc, nmRel, kmer, nmRel.shape)
     with model:
       log.info('posterior predictive run START')
