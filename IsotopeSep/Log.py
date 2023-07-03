@@ -102,10 +102,10 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   fnamepfx = os.path.join(outputDir, f'{kmer}-{sampler}')
 
   # Perform set selection
-  print(df['rel'])
-  bang
-  df = df[df['rel']==0.0 or df['rel']==0.3]
-  # update 'rel' of 0.3 to 1.0 for correct Bernoulli
+  df = df[(df['rel']==float(zeroRel)) | (df['rel']==float(oneRel))]
+  df['rel'].loc[df['rel']==float(zeroRel)] = 0
+  df['rel'].loc[df['rel']==float(oneRel)] = 1
+  df['rel']
 
   # prepare subsampling
   rels = df['rel'].value_counts()
@@ -351,10 +351,10 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
       #print(len(lastgoodaom))
       _, ax = plt.subplots(figsize=(12, 6))
       plt.axhline(y=0.5, color='black', linestyle='-')
-      ax.plot(p0, color='orange', label='0% D2O')
+      ax.plot(p0, color='orange', label=f'{float(zeroRel) * 100}% D2O')
       plt.axvline(x=p0good, color='orange', linestyle='solid')
       plt.annotate(f'{p0good / len(p0):.2f}', xy=(p0good,0.6), color='orange')
-      ax.plot(p1, color='blue', label='100% D2O')
+      ax.plot(p1, color='blue', label=f'{float(oneRel) * 100}% D2O')
       plt.axvline(x=p1good, color='blue', linestyle='dashed')
       plt.annotate(f'{p1good / len(p1):.2f}', xy=(p1good,0.4), color='blue')
       # horizontal line at error 0.5
