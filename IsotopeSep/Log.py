@@ -104,11 +104,15 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
 
   # Perform set selection
   df = df[(df['rel']==float(zeroRel)) | (df['rel']==float(oneRel))]
+  print(df)
+  df = df.groupby('read').filter(lambda x: len(x) == 4**int(kmer))
+  print(df)
   df['rel'].loc[df['rel']==float(zeroRel)] = 0
   df['rel'].loc[df['rel']==float(oneRel)] = 1
   df['rel']
   print('ZERO', df[df['rel']==0])
   print('ONE', df[df['rel']==1])
+  print('LEN', len(df) / (4**int(kmer)))
 
   # prepare subsampling
   rels = df['rel'].value_counts()
@@ -129,6 +133,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   df['madZ'] = df['madZ'].apply(lambda x: x if x > 0 else meanmadz)
   mads, lmbd = scipy.stats.boxcox(df['madZ'])
   df = df.assign(madZbc = mads)
+  print('LEN', len(df) / (4**int(kmer)))
   #
   # NAN tests
   #print(len(df))
@@ -139,8 +144,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
 
   # determine "nan" reads!
   nans = np.isnan(df['rel'].to_numpy())
+  print('LEN', len(nans) / (4**int(kmer)))
   print('nans', len(df[nans]))
-  bang
 
   # transform the column into the correct matrix form
   medianZ = df['medianZ'].to_xarray()
