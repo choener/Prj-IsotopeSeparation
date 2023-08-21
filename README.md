@@ -22,3 +22,7 @@ Currently:
       --posteriorpredictive \
       --train
     ```
+
+# TODO
+
+- Currently the ``barcode*.ids`` is generated from ``cat eventalign_summary.csv | awk '{print $2}' > barcode.ids``. This should be improved.

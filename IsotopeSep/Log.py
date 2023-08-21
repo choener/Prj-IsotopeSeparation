@@ -321,7 +321,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
       # Normally, we should now go and set new data via
       # pm.set_data({"pred": out-of-sample-data})
       # but we can pickle the trace, then reload with new data
-      trace = pm.sample_posterior_predictive(trace, var_names=['p', 'obs'], return_inferencedata=True, extend_inferencedata=True, predictions=True)
+      thinnedTrace = trace.sel(draw=slice(None,None,5))
+      trace = pm.sample_posterior_predictive(thinnedTrace, var_names=['p', 'obs'], return_inferencedata=True, extend_inferencedata=True, predictions=True)
       log.info('posterior predicte run DONE')
       print(trace)
       # important: contains "p"
@@ -375,10 +376,10 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
       plt.axhline(y=0.5, color='black', linestyle='-')
       ax.plot(p0, color='orange', label=f'{float(zeroRel) * 100}% D2O')
       plt.axvline(x=p0good, color='orange', linestyle='solid')
-      plt.annotate(f'{p0good / len(p0):.2f}', xy=(p0good,0.6), color='orange')
+      plt.annotate(f'{p0good / max(1,len(p0)):.2f}', xy=(p0good,0.6), color='orange')
       ax.plot(p1, color='blue', label=f'{float(oneRel) * 100}% D2O')
       plt.axvline(x=p1good, color='blue', linestyle='dashed')
-      plt.annotate(f'{p1good / len(p1):.2f}', xy=(p1good,0.4), color='blue')
+      plt.annotate(f'{p1good / max(1,len(p1)):.2f}', xy=(p1good,0.4), color='blue')
       # horizontal line at error 0.5
       ax.set_xlabel('Samples (ordered)')
       ax.set_ylabel('Prediction Error')

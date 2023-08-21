@@ -78,7 +78,9 @@ def main ():
     log.error(f'store directory does not exist')
     exit(0)
   storename = join("./store", hashstore + ".pickle.zst")
+  log.error(f'storename: {storename}')
   construct = Construct.Construct()
+  # TODO Always re-add the barcode information, even when we use a storename.
   for p,b in args.barcode:
     construct.addbarcode(p,b)
   if exists(storename):
