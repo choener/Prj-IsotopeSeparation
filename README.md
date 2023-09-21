@@ -23,6 +23,12 @@ Currently:
       --train
     ```
 
+# Performance tips
+
+- Keep the ``store`` directory on the local machine, where it can be accessed quickly. The summary
+  statistics inputs files won't be needed that often in comparison and can be stored on a network
+  drive.
+
 # TODO
 
 - Currently the ``barcode*.ids`` is generated from ``cat eventalign_summary.csv | awk '{print $2}' > barcode.ids``. This should be improved.
