@@ -274,7 +274,6 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
     sortedMadTrace = trace.posterior["mad"].sortby(madZ)
     madCoords = madZ.sortby(madZ).coords['kmer'].values
     plotForest(fnamepfx, 'zsortedforest-mad', kmer, sortedMadTrace.sel(kmer=madCoords[-10:]))
-    bang
     #az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
     #plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
     #plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
@@ -306,16 +305,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   # plot the posterior, should be quite fast
   # TODO only plots subset of figures, if there are too many subfigures
   log.info(f'plotting posterior distributions')
-  #g = medianZ.get_value().shape[1]
-  #g = 1 + int(np.sqrt(g+2))
-  az.plot_posterior(trace, var_names=['intercept', 'preScale']) # , grid=(g,g))
-  plt.savefig(f'{fnamepfx}-posterior.png')
-  plt.savefig(f'{fnamepfx}-posterior.pdf')
-  plt.close()
-  #az.plot_posterior(trace, var_names=['~p', '~intercept', '~preScale'])
-  #plt.savefig(f'{fnamepfx}-posterior-all.png')
-  #plt.savefig(f'{fnamepfx}-posterior-all.pdf')
-  #plt.close()
+  plotPosterior (fnamepfx, trace)
 
   if posteriorpredictive:
     # rebuild the model with full data!
@@ -405,8 +395,12 @@ def plotPosteriorPredictiveError (fname, mppmean, obs):
 
 # Plots the MCMC traces and overlay of all posteriors. Will already give a hint if some parameters are more important than others.
 def plotMcmcTrace(fnamepfx, kmer, trace):
-    ySize = min(256, 4**float(kmer))
-    az.plot_trace(trace, compact=True, combined=True, var_names=['~p'])
+    xSize, ySize = 12, 12
+    #fig, ax = plt.subplots(figsize=(xSize,ySize))
+    axes = az.plot_trace(trace, compact=True, combined=True, var_names=['~p'],figsize=(xSize,ySize))
+    for ax in axes.flatten():
+        plt.grid(c='grey')
+        ax.set_facecolor('white')
     plt.savefig(f'{fnamepfx}-trace.png')
     plt.savefig(f'{fnamepfx}-trace.pdf')
     plt.close()
@@ -427,3 +421,12 @@ def plotForest(fnamepfx, fnamessfx, kmer, trace):
     plt.savefig(f'{fnamepfx}-{fnamessfx}.pdf')
     plt.close()
 
+def plotPosterior(fnamepfx, trace):
+    xSize, ySize = 12, 6
+    axes = az.plot_posterior(trace, var_names=['intercept', 'preScale'], figsize=(xSize,ySize))
+    for ax in axes.flatten():
+        plt.grid(c='grey')
+        ax.set_facecolor('white')
+    plt.savefig(f'{fnamepfx}-posterior.png')
+    plt.savefig(f'{fnamepfx}-posterior.pdf')
+    plt.close()
