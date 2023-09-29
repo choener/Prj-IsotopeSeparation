@@ -29,6 +29,9 @@ rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
 #aesara.config.profile = True
+cOrange = '#d95f02'
+cBlue   = '#7570b3'
+cGreen  = '#1b9e77'
 
 
 """
@@ -248,50 +251,57 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   plt.savefig(f'{fnamepfx}-positionimportance.png')
   plt.savefig(f'{fnamepfx}-positionimportance.pdf')
   plt.close()
-  #bang
   # create plot(s); later guard via switch
   if True:
-    # plot only subset?
     ySize = min(256, 4**float(kmer))
-    az.plot_trace(trace, compact=True, combined=True, var_names=['~p'])
-    plt.savefig(f'{fnamepfx}-trace.png')
-    plt.savefig(f'{fnamepfx}-trace.pdf')
-    plt.close()
-    az.plot_forest(trace, var_names=['~p'], figsize=(6,ySize))
-    plt.savefig(f'{fnamepfx}-forest.png')
-    plt.savefig(f'{fnamepfx}-forest.pdf')
-    plt.close()
+    plotMcmcTrace(fnamepfx, kmer, trace)
     print(az.summary(trace, var_names=['~p'], round_to=2))
-    # scale stuff
+    # BUG need to plot forest without any sorting ...
+    ##
+    ## scale stuff
+    ##
     scaleMeans = abs(trace.posterior["scale"].mean(("chain", "draw")))
     scaleZ = scaleMeans / trace.posterior["scale"].std(("chain","draw"))
     sortedScaleTrace = trace.posterior["scale"].sortby(scaleZ)
-    az.plot_forest(sortedScaleTrace, var_names=['~p'], figsize=(6,ySize))
-    plt.savefig(f'{fnamepfx}-zsortedforest-scale.png')
-    plt.savefig(f'{fnamepfx}-zsortedforest-scale.pdf')
-    plt.close()
-    print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
-    sortedScaleTrace = trace.posterior["scale"].sortby(scaleMeans)
-    az.plot_forest(sortedScaleTrace, var_names=['~p'], figsize=(6,ySize))
-    plt.savefig(f'{fnamepfx}-meansortedforest-scale.png')
-    plt.savefig(f'{fnamepfx}-meansortedforest-scale.pdf')
-    plt.close()
-    print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
-    # mad stuff
+    scaleCoords = scaleZ.sortby(scaleZ).coords['kmer'].values
+    # best 10 scale values
+    plotForest(fnamepfx, 'zsortedforest-scale', kmer, sortedScaleTrace.sel(kmer=scaleCoords[-10:]))
+    ##
+    ## mad stuff
+    ##
     madMeans = abs(trace.posterior["mad"].mean(("chain", "draw")))
     madZ = madMeans / trace.posterior["mad"].std(("chain","draw"))
     sortedMadTrace = trace.posterior["mad"].sortby(madZ)
-    az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
-    plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
-    plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
-    plt.close()
-    print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
-    sortedMadTrace = trace.posterior["mad"].sortby(madMeans)
-    az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
-    plt.savefig(f'{fnamepfx}-meansortedforest-mad.png')
-    plt.savefig(f'{fnamepfx}-meansortedforest-mad.pdf')
-    plt.close()
-    print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
+    madCoords = madZ.sortby(madZ).coords['kmer'].values
+    plotForest(fnamepfx, 'zsortedforest-mad', kmer, sortedMadTrace.sel(kmer=madCoords[-10:]))
+    bang
+    #az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
+    #plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
+    #plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
+    #plt.close()
+    #bang
+    #print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
+    #sortedScaleTrace = trace.posterior["scale"].sortby(scaleMeans)
+    #az.plot_forest(sortedScaleTrace, var_names=['~p'], figsize=(6,ySize))
+    #plt.savefig(f'{fnamepfx}-meansortedforest-scale.png')
+    #plt.savefig(f'{fnamepfx}-meansortedforest-scale.pdf')
+    #plt.close()
+    #print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
+    ## mad stuff
+    #madMeans = abs(trace.posterior["mad"].mean(("chain", "draw")))
+    #madZ = madMeans / trace.posterior["mad"].std(("chain","draw"))
+    #sortedMadTrace = trace.posterior["mad"].sortby(madZ)
+    #az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
+    #plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
+    #plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
+    #plt.close()
+    #print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
+    #sortedMadTrace = trace.posterior["mad"].sortby(madMeans)
+    #az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
+    #plt.savefig(f'{fnamepfx}-meansortedforest-mad.png')
+    #plt.savefig(f'{fnamepfx}-meansortedforest-mad.pdf')
+    #plt.close()
+    #print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
 
   # plot the posterior, should be quite fast
   # TODO only plots subset of figures, if there are too many subfigures
@@ -341,11 +351,48 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
       mppmean = mppmean.sortby(mppmean)
       mppstd  = mppstd.sortby(mppmean)
       obs     = obs.sortby(mppmean)
+      #plotPosteriorPredictiveError(fnamepfx, mppmean, obs)
+      plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs)
+
+# Plots the model response error. For each sample, presence of isotopes is predicted within [0..1]. The error is the distance to the true class. In addition, we plot a horizontal line at 0.5. All points below are predicted correctly, all points above incorrectly. Two vertical lines show the fraction until which the error rate is below 0.5.
+
+def plotErrorResponse (fnamepfx, zeroRel, oneRel, mppmean, obs):
+    print(mppmean)
+    print(obs)
+    aom = (mppmean-obs)
+    print(aom)
+    p0 = aom.where(lambda x: x >= 0, drop=True)
+    p0 = p0.sortby(p0)
+    p0good = len(p0.where(lambda x: x < 0.5, drop=True))
+    p1 = abs(aom.where(lambda x: x <  0, drop=True))
+    p1 = p1.sortby(p1)
+    p1good = len(p1.where(lambda x: x < 0.5, drop=True))
+    _, ax = plt.subplots(figsize=(12, 6))
+    ax.set_facecolor('white')
+    plt.grid(c='grey')
+    plt.axhline(y=0.5, color='black', linestyle='-')
+    ax.plot(p0, color=cOrange, label=f'{float(zeroRel) * 100}%')
+    plt.axvline(x=p0good, color=cOrange, linestyle='solid')
+    plt.annotate(f'{p0good / max(1,len(p0)):.2f}', xy=(p0good,0.6), color=cOrange)
+    ax.plot(p1, color=cBlue, label=f'{float(oneRel) * 100}%')
+    plt.axvline(x=p1good, color=cBlue, linestyle='dashed')
+    plt.annotate(f'{p1good / max(1,len(p1)):.2f}', xy=(p1good,0.4), color=cBlue)
+    # horizontal line at error 0.5
+    ax.set_xlabel('Samples (ordered)')
+    ax.set_ylabel('Distance to true class (less is better)')
+    ax.set_title('Error response')
+    ax.legend(fontsize=10, frameon=True, framealpha=0.5)
+    # TODO vertical line that is annotated with percentage "good"
+    plt.savefig(f'{fnamepfx}-model-error.png')
+    plt.savefig(f'{fnamepfx}-model-error.pdf')
+    plt.close()
+
+def plotPosteriorPredictiveError (fname, mppmean, obs):
       _, ax = plt.subplots(figsize=(12, 6))
       # mean with +- stddev
-      ax.plot(mppmean, color='blue')
-      ax.plot(mppmean + mppstd, color='blue')
-      ax.plot(mppmean - mppstd, color='blue')
+      ax.plot(mppmean, color=cBlue)
+      ax.plot(mppmean + mppstd, color=cBlue)
+      ax.plot(mppmean - mppstd, color=cBlue)
       ax.plot(obs, '.')
       # actual
       ax.set_xlabel('Samples (sorted by p)')
@@ -355,38 +402,28 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
       plt.savefig(f'{fnamepfx}-poos.png')
       plt.savefig(f'{fnamepfx}-poos.pdf')
       plt.close()
-      # finally draw for each element, how good the prediction went.
-      # TODO should have multiple lines, depending on 0%, 100%, etc
-      # positive: 0% with their errors
-      # negative: 100% with their negated errors
-      print(mppmean)
-      print(obs)
-      aom = (mppmean-obs)
-      print(aom)
-      p0 = aom.where(lambda x: x >= 0, drop=True)
-      p0 = p0.sortby(p0)
-      p0good = len(p0.where(lambda x: x < 0.5, drop=True))
-      p1 = abs(aom.where(lambda x: x <  0, drop=True))
-      p1 = p1.sortby(p1)
-      p1good = len(p1.where(lambda x: x < 0.5, drop=True))
-      #aom = aom.sortby(aom)
-      #lastgoodaom = aom.where(lambda x: x < 0.5, drop=True)
-      #print(len(lastgoodaom))
-      _, ax = plt.subplots(figsize=(12, 6))
-      plt.axhline(y=0.5, color='black', linestyle='-')
-      ax.plot(p0, color='orange', label=f'{float(zeroRel) * 100}% D2O')
-      plt.axvline(x=p0good, color='orange', linestyle='solid')
-      plt.annotate(f'{p0good / max(1,len(p0)):.2f}', xy=(p0good,0.6), color='orange')
-      ax.plot(p1, color='blue', label=f'{float(oneRel) * 100}% D2O')
-      plt.axvline(x=p1good, color='blue', linestyle='dashed')
-      plt.annotate(f'{p1good / max(1,len(p1)):.2f}', xy=(p1good,0.4), color='blue')
-      # horizontal line at error 0.5
-      ax.set_xlabel('Samples (ordered)')
-      ax.set_ylabel('Prediction Error')
-      ax.set_title('Posterior Predictive Error (per sample)')
-      ax.legend(fontsize=10, frameon=True, framealpha=0.5)
-      # TODO vertical line that is annotated with percentage "good"
-      plt.savefig(f'{fnamepfx}-order-qos.png')
-      plt.savefig(f'{fnamepfx}-order-qos.pdf')
-      plt.close()
+
+# Plots the MCMC traces and overlay of all posteriors. Will already give a hint if some parameters are more important than others.
+def plotMcmcTrace(fnamepfx, kmer, trace):
+    ySize = min(256, 4**float(kmer))
+    az.plot_trace(trace, compact=True, combined=True, var_names=['~p'])
+    plt.savefig(f'{fnamepfx}-trace.png')
+    plt.savefig(f'{fnamepfx}-trace.pdf')
+    plt.close()
+
+# Forest plot of parameters. 
+def plotForest(fnamepfx, fnamessfx, kmer, trace):
+    _,_,n = trace.shape
+    plt.rcParams["font.family"] = "monospace"
+    ySize = min(256, n/2)
+    fig, ax = plt.subplots(figsize=(6, ySize))
+    ax.set_facecolor('white')
+    plt.grid(c='grey')
+    az.plot_forest(trace, var_names=['~p'], figsize=(6,ySize),ax=ax)
+    #legend = ax.get_legend()
+    #for text in legend.get_texts():
+    #    text.set(fontfamily='monospace')
+    plt.savefig(f'{fnamepfx}-{fnamessfx}.png')
+    plt.savefig(f'{fnamepfx}-{fnamessfx}.pdf')
+    plt.close()
 

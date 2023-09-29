@@ -32,3 +32,12 @@ Currently:
 # TODO
 
 - Currently the ``barcode*.ids`` is generated from ``cat eventalign_summary.csv | awk '{print $2}' > barcode.ids``. This should be improved.
+
+# Barcode associations
+
+| Percent | Isotope | Code          |
+|---------|---------|---------------|
+| 0       | D2O     | barcode14.ids |
+| 30      | D20     | barcode15.ids |
+| 100     | D20     | barcode16.ids |
+
