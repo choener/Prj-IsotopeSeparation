@@ -367,7 +367,7 @@ def plotErrorResponse (fnamepfx, zeroRel, oneRel, mppmean, obs):
     plt.axvline(x=p0good, color=cOrange, linestyle='solid')
     plt.annotate(f'{p0good / max(1,len(p0)):.2f}', xy=(p0good,0.6), color=cOrange)
     ax.plot(p1, color=cBlue, label=f'{float(oneRel) * 100}%')
-    plt.axvline(x=p1good, color=cBlue, linestyle='dashed')
+    plt.axvline(x=p1good, color=cBlue, linestyle='solid')
     plt.annotate(f'{p1good / max(1,len(p1)):.2f}', xy=(p1good,0.4), color=cBlue)
     # horizontal line at error 0.5
     ax.set_xlabel('Samples (ordered)')
