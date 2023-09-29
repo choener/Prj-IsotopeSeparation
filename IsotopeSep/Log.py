@@ -265,7 +265,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
     sortedScaleTrace = trace.posterior["scale"].sortby(scaleZ)
     scaleCoords = scaleZ.sortby(scaleZ).coords['kmer'].values
     # best 10 scale values
-    plotForest(fnamepfx, 'zsortedforest-scale', kmer, sortedScaleTrace.sel(kmer=scaleCoords[-10:]))
+    plotForest(fnamepfx, 'zsortedforest-scale-worst', kmer, sortedScaleTrace.sel(kmer=scaleCoords[:12]))
+    plotForest(fnamepfx, 'zsortedforest-scale-best', kmer, sortedScaleTrace.sel(kmer=scaleCoords[-12:]))
     ##
     ## mad stuff
     ##
@@ -273,7 +274,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
     madZ = madMeans / trace.posterior["mad"].std(("chain","draw"))
     sortedMadTrace = trace.posterior["mad"].sortby(madZ)
     madCoords = madZ.sortby(madZ).coords['kmer'].values
-    plotForest(fnamepfx, 'zsortedforest-mad', kmer, sortedMadTrace.sel(kmer=madCoords[-10:]))
+    plotForest(fnamepfx, 'zsortedforest-mad-worst', kmer, sortedMadTrace.sel(kmer=madCoords[:12]))
+    plotForest(fnamepfx, 'zsortedforest-mad-best', kmer, sortedMadTrace.sel(kmer=madCoords[-12:]))
     #az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
     #plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
     #plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
