@@ -359,7 +359,7 @@ def plotErrorResponse (fnamepfx, zeroRel, oneRel, mppmean, obs):
     p1 = abs(aom.where(lambda x: x <  0, drop=True))
     p1 = p1.sortby(p1)
     p1good = len(p1.where(lambda x: x < 0.5, drop=True))
-    _, ax = plt.subplots(figsize=(12, 6))
+    _, ax = plt.subplots(figsize=(6, 6))
     ax.set_facecolor('white')
     plt.grid(c='grey')
     plt.axhline(y=0.5, color='black', linestyle='-')
