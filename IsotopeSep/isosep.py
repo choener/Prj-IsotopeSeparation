@@ -103,7 +103,7 @@ def main ():
     log.info('finished saving groups to store')
     gc.collect()
 
-  log.info(f'Model loaded with {len(construct)} reads')
+  log.info(f'Model loaded with {len(construct)} stats and {len(construct) / (4**int(args.kmer))} reads')
   # TODO make sure to select correct targets
   if args.train or args.posteriorpredictive or args.priorpredictive:
     Log.runModel(args.zero, args.one, args.outputdir, args.kmer, construct.dfgroups[0], train = args.train, posteriorpredictive = args.posteriorpredictive, priorpredictive = args.priorpredictive, maxsamples = args.maxsamples, sampler = args.sampler)

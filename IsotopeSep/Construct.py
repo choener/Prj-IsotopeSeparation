@@ -53,7 +53,11 @@ class Construct:
     #      sys.exit(f'{len(s)} non-unique labels for the label keys {l} and {k}, exiting now')
 
   def __len__(self):
-    return (len(self.finishedReads))
+    tot = 0
+    for i in self.dfgroups:
+      tot += len(i)
+    return tot
+    #return (len(self.finishedReads))
 
   # Add a dataframe with kmer information for further processing
   # this will reduce the dataframe to key pairs (kmer,relative d2o) with mean values for medianZ and

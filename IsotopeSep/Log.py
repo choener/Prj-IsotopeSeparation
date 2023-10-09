@@ -105,11 +105,15 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
 
   fnamepfx = os.path.join(outputDir, f'{kmer}-{sampler}')
 
+
   # Perform set selection
   df = df[(df['rel']==float(zeroRel)) | (df['rel']==float(oneRel))]
   print(df)
   df = df.groupby('read').filter(lambda x: len(x) == 4**int(kmer))
   print(df)
+  rels = df['rel'].value_counts()
+  rels /= (4**int(kmer))
+  log.info(f'rels: {rels}')
   df['rel'].loc[df['rel']==float(zeroRel)] = 0
   df['rel'].loc[df['rel']==float(oneRel)] = 1
   df['rel']
@@ -119,6 +123,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
 
   # prepare subsampling
   rels = df['rel'].value_counts()
+  log.info(f'rels: {rels}')
   samplecount = int(min(rels) / (4**int(kmer)))
   if maxsamples is not None:
     samplecount = min(samplecount, int(maxsamples))
@@ -129,6 +134,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
     sampledreads.extend(cands[0:samplecount])
   log.info(f'subsampled {samplecount} reads for each d2o level')
   df = df[df.droplevel('k').index.isin(sampledreads)]
+  print("subsample",df)
 
   # The "madZ" values are all positive. We apply a Box-Cox transformation here
   meanmadz = df[df['madZ']>0]['madZ'].mean()
