@@ -11,7 +11,7 @@ function train {
   if [ ! -f ./$1/5-adagrad-trace.netcdf ]
   then
     ./IsotopeSep/isosep.py \
-      --barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids \
+      $6 \
       --summarydirs $3 \
       --posteriorpredictive \
       --zero $4 --one $5 \
@@ -22,7 +22,7 @@ function train {
   fi
   # always run a posterior predictive afterwards
   ./IsotopeSep/isosep.py \
-    --barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids \
+    $6 \
     --summarydirs $3 \
     --posteriorpredictive \
     --zero $4 --one $5 \
@@ -42,7 +42,7 @@ function test {
   mkdir -p $1
   cp $2/$3-adagrad-trace.netcdf $1
   ./IsotopeSep/isosep.py \
-    --barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids \
+    $7 \
     --summarydirs $4 \
     --posteriorpredictive \
     --zero $5 --one $6 \
@@ -51,25 +51,18 @@ function test {
     --sampler adagrad
 }
 
-# copy over trained models for tests
+# # deuterium
+# 
+# train ./train-d2o-0-30   5  ../_data/data1x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+# train ./train-d2o-0-100  5  ../_data/data1x  0.0  1.0   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+# 
+# test ./test-d2o-0-30   ./train-d2o-0-30   5  ../_data/data2x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+# test ./test-d2o-0-100  ./train-d2o-0-100  5  ../_data/data2x  0.0  1.0   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+# test ./test-d2o-0-30-100  ./train-d2o-0-30  5  ../_data/data2x  0.0  1.0   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
 
-#mkdir -p ./test-d2o-0-30
-#mkdir -p ./test-d2o-0-30-100  # trained on 0-30 but tested on 0-100
-#cp ./train-d2o-0-30/5-adagrad-trace.netcdf ./test-d2o-0-30
+# carbon
 
-#./IsotopeSep/isosep.py \
-#  --barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids \
-#  --summarydirs ../_data/data2x \
-#  --posteriorpredictive \
-#  --zero 0.0 --one 0.3 \
-#  --outputdir ./test-d2o-0-30 \
-#  --kmer 5 \
-#  --sampler adagrad
+train ./train-carbon-0-100 5 ../_data/carbon/data/train 0.0 1.0   "--barcode 0 ../_data/carbon/barcodes/barcode20.ids --barcode 100 ../_data/carbon/barcodes/barcode21.ids"
 
-train ./train-d2o-0-30   5  ../_data/data1x  0.0  0.3
-train ./train-d2o-0-100  5  ../_data/data1x  0.0  1.0
-
-test ./test-d2o-0-30   ./train-d2o-0-30   5  ../_data/data2x  0.0  0.3
-test ./test-d2o-0-100  ./train-d2o-0-100  5  ../_data/data2x  0.0  1.0
-test ./test-d2o-0-30-100  ./train-d2o-0-30  5  ../_data/data2x  0.0  1.0
+test ./test-carbon-0-100 ./train-carbon-0-100 5 ../_data/carbon/data/test 0.0 1.0   "--barcode 0 ../_data/carbon/barcodes/barcode20.ids --barcode 100 ../_data/carbon/barcodes/barcode21.ids"
 
