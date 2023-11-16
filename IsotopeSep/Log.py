@@ -28,6 +28,8 @@ RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
+plt.rc('font', size=20)
+plt.rc('axes', titlesize=20)
 #aesara.config.profile = True
 cOrange = '#d95f02'
 cBlue   = '#7570b3'
@@ -351,6 +353,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
       obs     = obs.sortby(mppmean)
       #plotPosteriorPredictiveError(fnamepfx, mppmean, obs)
       plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs)
+      falseDiscoveryRate(fnamepfx, mppmean, obs)
+
 
 # Plots the model response error. For each sample, presence of isotopes is predicted within [0..1]. The error is the distance to the true class. In addition, we plot a horizontal line at 0.5. All points below are predicted correctly, all points above incorrectly. Two vertical lines show the fraction until which the error rate is below 0.5.
 
@@ -379,7 +383,7 @@ def plotErrorResponse (fnamepfx, zeroRel, oneRel, mppmean, obs):
     ax.set_xlabel('Samples (ordered)')
     ax.set_ylabel('Distance to true class (less is better)')
     ax.set_title('Error response')
-    ax.legend(fontsize=10, frameon=True, framealpha=0.5)
+    ax.legend(frameon=True, framealpha=0.5)
     # TODO vertical line that is annotated with percentage "good"
     plt.savefig(f'{fnamepfx}-model-error.png')
     plt.savefig(f'{fnamepfx}-model-error.pdf')
@@ -396,7 +400,7 @@ def plotPosteriorPredictiveError (fname, mppmean, obs):
       ax.set_xlabel('Samples (sorted by p)')
       ax.set_ylabel('p (Predicted D2O)')
       ax.set_title('Posterior Predictive Error (±σ)')
-      ax.legend(fontsize=10, frameon=True, framealpha=0.5)
+      ax.legend(frameon=True, framealpha=0.5)
       plt.savefig(f'{fnamepfx}-poos.png')
       plt.savefig(f'{fnamepfx}-poos.pdf')
       plt.close()
@@ -438,3 +442,31 @@ def plotPosterior(fnamepfx, trace):
     plt.savefig(f'{fnamepfx}-posterior.png')
     plt.savefig(f'{fnamepfx}-posterior.pdf')
     plt.close()
+
+"""
+Calculate the false discovery rate at certain levels and plot
+"""
+
+def falseDiscoveryRate (fnamepfx,mppmean, obs):
+    # Only choose elements *at most* this far away from 0.5; 0.1, for example, accept <=0.1 and >=0.9
+    rs = np.arange(0, 0.5, 0.001)
+    ys = []
+    for r in rs:
+        cond = np.logical_or(mppmean <= r, mppmean >= 1-r)
+        ms = mppmean[cond]
+        os = obs[cond]
+        cs = abs(ms-os)
+        ts = cs[cs>0.5]
+        ys = np.append(ys, len(ts) / max(1,len(cs)))
+    _, ax = plt.subplots(figsize=(6, 6))
+    ax.plot(rs,ys, color='black', label=f'FDR')
+    plt.grid(c='grey')
+    ax.set_facecolor('white')
+    ax.set_xlabel('Cutoff')
+    ax.set_ylabel('Relative correctly predicted')
+    ax.set_title('Correctly predicted at cutoff')
+    ax.legend(frameon=True, framealpha=0.5)
+    plt.savefig(f'{fnamepfx}-fdr.png')
+    plt.savefig(f'{fnamepfx}-fdr.pdf')
+    plt.close()
+

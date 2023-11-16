@@ -53,16 +53,17 @@ function test {
 
 # # deuterium
 # 
-# train ./train-d2o-0-30   5  ../_data/data1x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+# train ./train-d2o-0-30   1  ../_data/data1x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+train ./train-d2o-0-30   5  ../_data/data1x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
 # train ./train-d2o-0-100  5  ../_data/data1x  0.0  1.0   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
 # 
-# test ./test-d2o-0-30   ./train-d2o-0-30   5  ../_data/data2x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
+test ./test-d2o-0-30   ./train-d2o-0-30   5  ../_data/data2x  0.0  0.3   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
 # test ./test-d2o-0-100  ./train-d2o-0-100  5  ../_data/data2x  0.0  1.0   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
 # test ./test-d2o-0-30-100  ./train-d2o-0-30  5  ../_data/data2x  0.0  1.0   "--barcode 0 taubert-d2o/barcode14.ids --barcode 30 taubert-d2o/barcode15.ids --barcode 100 taubert-d2o/barcode16.ids"
 
 # carbon
 
-train ./train-carbon-0-100 5 ../_data/carbon/data/train 0.0 1.0   "--barcode 0 ../_data/carbon/barcodes/barcode20.ids --barcode 100 ../_data/carbon/barcodes/barcode21.ids"
+# train ./train-carbon-0-100 5 ../_data/carbon/data/train 0.0 1.0   "--barcode 0 ../_data/carbon/barcodes/barcode20.ids --barcode 100 ../_data/carbon/barcodes/barcode21.ids"
 
-test ./test-carbon-0-100 ./train-carbon-0-100 5 ../_data/carbon/data/test 0.0 1.0   "--barcode 0 ../_data/carbon/barcodes/barcode20.ids --barcode 100 ../_data/carbon/barcodes/barcode21.ids"
+# test ./test-carbon-0-100 ./train-carbon-0-100 5 ../_data/carbon/data/test 0.0 1.0   "--barcode 0 ../_data/carbon/barcodes/barcode20.ids --barcode 100 ../_data/carbon/barcodes/barcode21.ids"
 
