@@ -464,7 +464,7 @@ def falseDiscoveryRate (fnamepfx,mppmean, obs):
     ax.set_facecolor('white')
     ax.set_xlabel('Cutoff')
     ax.set_ylabel('Relative correctly predicted')
-    ax.set_title('Correctly predicted at cutoff')
+    ax.set_title('Misprediction rate')
     ax.legend(frameon=True, framealpha=0.5)
     plt.savefig(f'{fnamepfx}-fdr.png')
     plt.savefig(f'{fnamepfx}-fdr.pdf')
