@@ -450,22 +450,28 @@ Calculate the false discovery rate at certain levels and plot
 def falseDiscoveryRate (fnamepfx,mppmean, obs):
     # Only choose elements *at most* this far away from 0.5; 0.1, for example, accept <=0.1 and >=0.9
     rs = np.arange(0, 0.5, 0.001)
-    ys = []
+    ys = [] #
+    ns = [] # relative fraction of reads within the constraint
     for r in rs:
         cond = np.logical_or(mppmean <= r, mppmean >= 1-r)
         ms = mppmean[cond]
         os = obs[cond]
         cs = abs(ms-os)
-        ts = cs[cs>0.5]
-        ys = np.append(ys, len(ts) / max(1,len(cs)))
-    _, ax = plt.subplots(figsize=(6, 6))
-    ax.plot(rs,ys, color='black', label=f'FDR')
+        fs = cs[cs>0.5]
+        ys = np.append(ys, len(fs) / max(1,len(cs)))
+        ns = np.append(ns, len(ms) / len(mppmean))
+    fig, ax1 = plt.subplots(figsize=(6, 6))
+    ax1.plot(rs,ys, color='black', label=f'FDR')
     plt.grid(c='grey')
-    ax.set_facecolor('white')
-    ax.set_xlabel('Cutoff')
-    ax.set_ylabel('Relative correctly predicted')
-    ax.set_title('Misprediction rate')
-    ax.legend(frameon=True, framealpha=0.5)
+    ax1.set_facecolor('white')
+    ax1.set_xlabel('Cutoff')
+    ax1.set_ylabel('Relative correctly predicted')
+    ax1.set_title('Misprediction rate')
+    ax2 = ax1.twinx()
+    ax2.plot(rs,ns, color='blue', label='fraction of reads')
+    ax2.set_ylabel('Fraction of reads')
+    fig.legend(loc='upper right')
+    #fig.legend(loc='lower right', bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)
     plt.savefig(f'{fnamepfx}-fdr.png')
     plt.savefig(f'{fnamepfx}-fdr.pdf')
     plt.close()
