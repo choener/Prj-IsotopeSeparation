@@ -15,6 +15,7 @@ import seaborn as sb
 import pandas as pd
 import os.path
 import sys
+import csv
 
 import pymc.sampling.jax
 
@@ -460,6 +461,8 @@ def falseDiscoveryRate (fnamepfx,mppmean, obs):
         fs = cs[cs>0.5]
         ys = np.append(ys, len(fs) / max(1,len(cs)))
         ns = np.append(ns, len(ms) / len(mppmean))
+    df = pd.DataFrame({'cutoff': rs, 'fdr': ys, 'relreads': ns})
+    df.to_csv(f'{fnamepfx}-fdr.csv', index=False)
     fig, ax1 = plt.subplots(figsize=(6, 6))
     ax1.plot(rs,ys, color='black', label=f'FDR')
     plt.grid(c='grey')
