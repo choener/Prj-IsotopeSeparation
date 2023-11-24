@@ -6,6 +6,8 @@ import pytensor.tensor as at
 import arviz as az
 import logging as log
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+import matplotlib.pylab as pylab
 import numpy as np
 import pymc as pm
 import scipy
@@ -29,9 +31,6 @@ RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
-plt.rc('font', size=20)
-plt.rc('axes', titlesize=20)
-#aesara.config.profile = True
 cOrange = '#d95f02'
 cBlue   = '#7570b3'
 cGreen  = '#1b9e77'
@@ -467,14 +466,14 @@ def falseDiscoveryRate (fnamepfx,mppmean, obs):
     ax1.plot(rs,ys, color='black', label=f'FDR')
     plt.grid(c='grey')
     ax1.set_facecolor('white')
-    ax1.set_xlabel('Cutoff')
-    ax1.set_ylabel('Relative correctly predicted')
-    ax1.set_title('Misprediction rate')
+    ax1.set_xlabel('Cutoff', fontsize=12)
+    ax1.set_ylabel('FDR', fontsize=12)
+    ax1.set_title('False discovery rate')
     ax2 = ax1.twinx()
-    ax2.plot(rs,ns, color='blue', label='fraction of reads')
-    ax2.set_ylabel('Fraction of reads')
-    fig.legend(loc='upper right')
-    #fig.legend(loc='lower right', bbox_to_anchor=(1,1), bbox_transform=ax1.transAxes)
+    ax2.grid(None)
+    ax2.plot(rs,ns, color='blue', label='Fraction of reads')
+    ax2.set_ylabel('Fraction of reads', fontsize=12)
+    fig.legend(frameon=True, facecolor='white', framealpha=1.0, loc='lower right', bbox_to_anchor=(0.85,0.15))
     plt.savefig(f'{fnamepfx}-fdr.png')
     plt.savefig(f'{fnamepfx}-fdr.pdf')
     plt.close()
