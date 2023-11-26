@@ -31,6 +31,9 @@ RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
+fontsz=12 # fontsize
+titlesz=16 # fontsize for title
+linew=2 # line width of important lines
 cOrange = '#d95f02'
 cBlue   = '#7570b3'
 cGreen  = '#1b9e77'
@@ -111,6 +114,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train = True, posteriorpredic
   # Perform set selection
   df = df[(df['rel']==float(zeroRel)) | (df['rel']==float(oneRel))]
   print(df)
+  # TODO only do while training, but might require imputing the missing kmer counts
   df = df.groupby('read').filter(lambda x: len(x) == 4**int(kmer))
   print(df)
   rels = df['rel'].value_counts()
@@ -372,18 +376,19 @@ def plotErrorResponse (fnamepfx, zeroRel, oneRel, mppmean, obs):
     _, ax = plt.subplots(figsize=(6, 6))
     ax.set_facecolor('white')
     plt.grid(c='grey')
-    plt.axhline(y=0.5, color='black', linestyle='-')
-    ax.plot(p0, color=cOrange, label=f'{float(zeroRel) * 100}%')
-    plt.axvline(x=p0good, color=cOrange, linestyle='solid')
-    plt.annotate(f'{p0good / max(1,len(p0)):.2f}', xy=(p0good,0.6), color=cOrange)
-    ax.plot(p1, color=cBlue, label=f'{float(oneRel) * 100}%')
-    plt.axvline(x=p1good, color=cBlue, linestyle='solid')
-    plt.annotate(f'{p1good / max(1,len(p1)):.2f}', xy=(p1good,0.4), color=cBlue)
+    plt.axhline(y=0.5, color='black', linestyle='-', linewidth=linew)
+    ax.plot(p0, color=cOrange, label=f'{float(zeroRel) * 100}%', linewidth=linew)
+    plt.axvline(x=p0good, color=cOrange, linestyle='solid', linewidth=linew)
+    plt.annotate(f'{p0good / max(1,len(p0)):.2f}', xy=(p0good,0.6), color=cOrange, fontsize=fontsz)
+    ax.plot(p1, color=cBlue, label=f'{float(oneRel) * 100}%', linewidth=linew)
+    plt.axvline(x=p1good, color=cBlue, linestyle='solid', linewidth=linew)
+    plt.annotate(f'{p1good / max(1,len(p1)):.2f}', xy=(p1good,0.4), color=cBlue, fontsize=fontsz)
     # horizontal line at error 0.5
-    ax.set_xlabel('Samples (ordered)')
-    ax.set_ylabel('Distance to true class (less is better)')
-    ax.set_title('Error response')
-    ax.legend(frameon=True, framealpha=0.5)
+    ax.set_xlabel('Samples (ordered)', fontsize=fontsz)
+    ax.set_ylabel('Distance to true class (less is better)', fontsize=fontsz)
+    ax.set_title('Error response', fontsize=titlesz)
+    #ax.legend(frameon=True, framealpha=0.5)
+    ax.legend(frameon=True, facecolor='white', framealpha=1.0, loc='upper left', bbox_to_anchor=(0.1,0.9))
     # TODO vertical line that is annotated with percentage "good"
     plt.savefig(f'{fnamepfx}-model-error.png')
     plt.savefig(f'{fnamepfx}-model-error.pdf')
@@ -447,9 +452,12 @@ def plotPosterior(fnamepfx, trace):
 Calculate the false discovery rate at certain levels and plot
 """
 
+# TODO Consider using not mppmean, but the whole set of parallel runs. Then provide +- 1 sigma around the mean as well.
+
 def falseDiscoveryRate (fnamepfx,mppmean, obs):
     # Only choose elements *at most* this far away from 0.5; 0.1, for example, accept <=0.1 and >=0.9
-    rs = np.arange(0, 0.5, 0.001)
+    rsStepSz = 0.0001
+    rs = np.arange(0 + rsStepSz, 0.5 + rsStepSz, rsStepSz)
     ys = [] #
     ns = [] # relative fraction of reads within the constraint
     for r in rs:
@@ -466,13 +474,13 @@ def falseDiscoveryRate (fnamepfx,mppmean, obs):
     ax1.plot(rs,ys, color='black', label=f'FDR')
     plt.grid(c='grey')
     ax1.set_facecolor('white')
-    ax1.set_xlabel('Cutoff', fontsize=12)
-    ax1.set_ylabel('FDR', fontsize=12)
-    ax1.set_title('False discovery rate')
+    ax1.set_xlabel('Cutoff', fontsize=fontsz)
+    ax1.set_ylabel('FDR', fontsize=fontsz)
+    ax1.set_title('False discovery rate', fontsize=titlesz)
     ax2 = ax1.twinx()
     ax2.grid(None)
     ax2.plot(rs,ns, color='blue', label='Fraction of reads')
-    ax2.set_ylabel('Fraction of reads', fontsize=12)
+    ax2.set_ylabel('Fraction of reads', fontsize=fontsz)
     fig.legend(frameon=True, facecolor='white', framealpha=1.0, loc='lower right', bbox_to_anchor=(0.85,0.15))
     plt.savefig(f'{fnamepfx}-fdr.png')
     plt.savefig(f'{fnamepfx}-fdr.pdf')
