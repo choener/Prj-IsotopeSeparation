@@ -20,6 +20,7 @@
         overlays = [ self.overlay devshell.overlays.default ];
       };
       pyenv = pkgs.python310.withPackages (p: [
+        p.autopep8
         p.arviz
         p.h5py
         p.joblib
