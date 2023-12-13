@@ -8,5 +8,5 @@ go() {
 }
 
 export -f go
-parallel --jobs 6 go {} ::: ../_data/data/*
+parallel --jobs 20 go {} ::: ../_data/data/*
 
