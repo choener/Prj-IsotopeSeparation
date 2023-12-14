@@ -51,6 +51,7 @@ class Construct:
     # TODO Always create dense vector? Or have function to extract dense vector?
     def addkmerdf(self, kmer, df, rds):
         rds['pfxZ'] = (rds['pfxMedian'] - rds['median']) / rds['mad']
+        rds['read'] = rds['read'].apply(lambda x: x.removeprefix('read_'))
         rds = rds.set_index('read')
         #df = df.merge(rds[['read', 'pfxZ']], on='read')
         # restrict processing to rows with correct kmer length
@@ -64,12 +65,21 @@ class Construct:
             rgdf = pd.DataFrame(index = Kmer.gen(int(kmer)))
             rgdf = rgdf.merge(gg, left_index=True, right_index=True, how='left')
             rgdf.fillna(0, inplace=True)
-            dct = { 'read': r, 'medianZ': rgdf['medianZ'].values, 'madZ': rgdf['madZ'].values }
+            dct = { 'read': r.removeprefix('read_'), 'medianZ': rgdf['medianZ'].values, 'madZ': rgdf['madZ'].values, 'complete': len(gg) == len(rgdf) }
             rowslist.append(dct)
         tmp = pd.DataFrame(rowslist)
         tmp = tmp.set_index('read')
         tmp = tmp.merge(rds, on='read')
         self.df = tmp
+
+    def addfilterbarcodes(self, barcodes):
+        before = len(self.df)
+        self.df = self.df.merge(barcodes, how='inner', left_index=True, right_index=True)
+        after = len(self.df)
+
+    def onlycomplete(self):
+        c = self.df['complete']
+        self.df = self.df[c]
 
     def save(self, fname):
         with zstandard.open(fname, 'wb') as f:
