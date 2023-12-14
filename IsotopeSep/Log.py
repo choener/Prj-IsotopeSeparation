@@ -58,29 +58,28 @@ optimization.
 """
 
 
-def buildModel(coords, preMedian, medianZ, madZbc, observed, kmer, totalSz, batchSz=1000):
+def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, totalSz, batchSz=1000):
     with pm.Model(coords=coords) as model:
-        # data we want to be able to swap for posterior predictive
-        # access via get_value() / set_value()
-        # preMedian = pm.MutableData("preMedian", preMedian)
-        # medianZ  = pm.MutableData("medianZ", medianZ)
-        # madZbc   = pm.MutableData('madZbc', madZbc)
-        # log.info(f'preMedian data shape: {preMedian.get_value().shape}')
-        # log.info(f'medianZ data shape: {medianZ.get_value().shape}')
-        # log.info(f'madZbc data shape: {madZbc.get_value().shape}')
+        log.info(f'preMedian shape: {preMedian.shape}')
+        log.info(f'medianZ shape: {medianZ.shape}')
+        log.info(f'madZbc shape: {madZbc.shape}')
+        log.info(f'meanDwellbc shape: {meanDwellbc.shape}')
+        log.info(f'observed shape: {observed.shape}')
 
-        pScale = pm.Beta('preScale', 0.5, 0.5)
+        #pScale = pm.Beta('preScale', 0.5, 0.5)
         kScale = pm.Normal('scale', 0, 1, dims='kmer')
         mScale = pm.Normal('mad', 0, 1, dims='kmer')
         intercept = pm.Normal('intercept', 0, 10)
-        log.info(f'pScale shape: {pScale.shape}')
+        dwellScale = pm.Normal('dwell', 0, 1, dims='kmer')
+        #log.info(f'pScale shape: {pScale.shape}')
         log.info(f'kScale shape: {kScale.shape}')
         log.info(f'mScale shape: {mScale.shape}')
         log.info(f'intercept shape: {intercept.shape}')
 
-        # rowSum    =  pm.math.dot(medianZ, kScale)
-        rowSum = pm.math.dot(medianZ - pScale * preMedian, kScale)
+        #preChange = pScale * preMedian
+        rowSum = pm.math.dot(medianZ, kScale) # medianZ-preChange, does not improve predictions, hence left out for now
         rowSum += pm.math.dot(madZbc, mScale)
+        rowSum += pm.math.dot(meanDwellbc, dwellScale)
         predpcnt = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
         log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
 
@@ -93,12 +92,13 @@ def buildModel(coords, preMedian, medianZ, madZbc, observed, kmer, totalSz, batc
     return model
 
 
-def buildTensorVars(preMedian, medianZ, madZbc, obs):
-    nmPreMedian = preMedian.to_numpy()
-    nmMedianZ = medianZ.to_numpy()
-    nmMadZbc = madZbc.to_numpy()
-    nmObs = obs.to_numpy()
-    return nmPreMedian, nmMedianZ, nmMadZbc, nmObs
+def buildTensorVars(preMedian, medianZ, madZbc, obs, dwellMeanbc):
+    nmPreMedian = pytensor.shared(preMedian)
+    nmMedianZ = pytensor.shared(medianZ)
+    nmMadZbc = pytensor.shared(madZbc)
+    nmObs = pytensor.shared(obs)
+    nmDwellMeanbc = pytensor.shared(dwellMeanbc)
+    return nmPreMedian, nmMedianZ, nmMadZbc, nmObs, nmDwellMeanbc
 
 # The holy model:
 # - logistic regression on 0, 30, 100 % deuterium; i.e 0; 0.3; 1.0
@@ -148,9 +148,14 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
     # concatenate all 'madZ' values, perform boxcox to get the lambda
     madzs = np.concatenate(df['madZ'])
     madzs = np.delete(madzs, np.where(madzs == 0))
-    _ , lmbd = scipy.stats.boxcox(madzs)
-    df['madZbc'] = df['madZ'].apply(lambda x: scipy.stats.boxcox(x, lmbda = lmbd))
-    print(df)
+    _ , lmbdMadZ = scipy.stats.boxcox(madzs)
+    df['madZbc'] = df['madZ'].apply(lambda x: scipy.stats.boxcox(x, lmbda = lmbdMadZ))
+
+    # concatenate all 'dwellMean' values, perform boxcox again
+    dwellmeans = np.concatenate(df['dwellMean'])
+    dwellmeans = np.delete(dwellmeans, np.where(dwellmeans==0))
+    _, lmbdDwellMeans = scipy.stats.boxcox(dwellmeans)
+    df['dwellMeanbc'] = df['dwellMean'].apply(lambda x: scipy.stats.boxcox(x, lmbda = lmbdDwellMeans))
 
     # determine "nan" reads!
     #nans = np.isnan(df['rel'].to_numpy())
@@ -167,6 +172,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
     #preMedian = df['pfxZ'].to_xarray()
     preMedian = np.array(list(df['pfxZ']))
     #relTotalSize = rel.shape
+    dwellMeanbc = np.array(list(df['dwellMeanbc']))
 
     # TODO hints on how to implement minibatches, which will require creating a single, huge matrix,
     # then splitting again
@@ -179,8 +185,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
     coords = {'kmer': Kmer.gen(int(kmer))
               }
 
-    #nmPreMedian, nmMedianZ, nmMadZbc, nmRel = buildTensorVars(
-    #    preMedian, medianZ, madZbc, rel)
+    nmPreMedian, nmMedianZ, nmMadZbc, nmRel, nmDwellMeanbc = buildTensorVars(
+        preMedian, medianZ, madZbc, rel, dwellMeanbc)
 
     # TODO profile model (especially for k=5)
 
@@ -206,36 +212,35 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
         trace = None
         match sampler:
             case "adagrad":
-                mbPreMedian, mbMedianZ, mbMadZbc, mbRel = pm.Minibatch(
-                    preMedian, medianZ, madZbc, rel, batch_size=batchSz)
+                mbPreMedian, mbMedianZ, mbMadZbc, mbRel, mbDwellMeanbc = pm.Minibatch(
+                    nmPreMedian, nmMedianZ, nmMadZbc, nmRel, nmDwellMeanbc, batch_size=batchSz)
                 model = buildModel(coords, mbPreMedian,
-                                   mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
+                                   mbMedianZ, mbMadZbc, mbDwellMeanbc, mbRel, kmer, rel.shape)
                 # run the model with mini batches
                 with model:
                     mf: pm.MeanField = pm.fit(
                         n=50000, obj_optimizer=pm.adagrad_window(learning_rate=1e-2))
                     trace = mf.sample(draws=5000)
-            case "advi":
-                mbPreMedian, mbMedianZ, mbMadZbc, mbRel = pm.Minibatch(
-                    nmPreMedian, nmMedianZ, nmMadZbc, nmRel, batch_size=batchSz)
-                model = buildModel(coords, mbPreMedian,
-                                   mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
-                with model:
-                    mf = pm.fit(n=50000, method="advi")
-                    trace = mf.sample(draws=5000)
-            case "jax":
-                model = buildModel(coords, preMedian,
-                                   medianZ, madZbc, rel, kmer)
-                with model:
-                    trace = pymc.sampling.jax.sample_numpyro_nuts(
-                        draws=1000, tune=1000, chains=2, postprocessing_backend='cpu')
-            case "nuts":
-                trace = pm.sample(1000, return_inferencedata=True,
-                                  tune=1000, chains=2, cores=2)
+            #case "advi":
+            #    mbPreMedian, mbMedianZ, mbMadZbc, mbRel = pm.Minibatch(
+            #        nmPreMedian, nmMedianZ, nmMadZbc, nmRel, batch_size=batchSz)
+            #    model = buildModel(coords, mbPreMedian,
+            #                       mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
+            #    with model:
+            #        mf = pm.fit(n=50000, method="advi")
+            #        trace = mf.sample(draws=5000)
+            #case "jax":
+            #    model = buildModel(coords, preMedian,
+            #                       medianZ, madZbc, rel, kmer)
+            #    with model:
+            #        trace = pymc.sampling.jax.sample_numpyro_nuts(
+            #            draws=1000, tune=1000, chains=2, postprocessing_backend='cpu')
+            #case "nuts":
+            #    trace = pm.sample(1000, return_inferencedata=True,
+            #                      tune=1000, chains=2, cores=2)
             case "advi-nuts":
-                model = buildModel(coords, nmPreMedian, nmMedianZ,
-                                   nmMadZbc, nmRel, kmer, nmRel.shape)
-                # model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer, rel.shape)
+                model = buildModel(coords, preMedian, medianZ,
+                                   madZbc, dwellMeanbc, rel, kmer, rel.shape)
                 with model:
                     trace = pm.sample(1000, return_inferencedata=True,
                                       tune=1000, chains=2, cores=2, init="advi+adapt_diag")
@@ -302,33 +307,17 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
                    sortedMadTrace.sel(kmer=madCoords[:12]))
         plotForest(fnamepfx, 'zsortedforest-mad-best', kmer,
                    sortedMadTrace.sel(kmer=madCoords[-12:]))
-        # az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
-        # plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
-        # plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
-        # plt.close()
-        # bang
-        # print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
-        # sortedScaleTrace = trace.posterior["scale"].sortby(scaleMeans)
-        # az.plot_forest(sortedScaleTrace, var_names=['~p'], figsize=(6,ySize))
-        # plt.savefig(f'{fnamepfx}-meansortedforest-scale.png')
-        # plt.savefig(f'{fnamepfx}-meansortedforest-scale.pdf')
-        # plt.close()
-        # print(az.summary(sortedScaleTrace, var_names=['~p'], round_to=2))
-        # mad stuff
-        # madMeans = abs(trace.posterior["mad"].mean(("chain", "draw")))
-        # madZ = madMeans / trace.posterior["mad"].std(("chain","draw"))
-        # sortedMadTrace = trace.posterior["mad"].sortby(madZ)
-        # az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
-        # plt.savefig(f'{fnamepfx}-zsortedforest-mad.png')
-        # plt.savefig(f'{fnamepfx}-zsortedforest-mad.pdf')
-        # plt.close()
-        # print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
-        # sortedMadTrace = trace.posterior["mad"].sortby(madMeans)
-        # az.plot_forest(sortedMadTrace, var_names=['~p'], figsize=(6,ySize))
-        # plt.savefig(f'{fnamepfx}-meansortedforest-mad.png')
-        # plt.savefig(f'{fnamepfx}-meansortedforest-mad.pdf')
-        # plt.close()
-        # print(az.summary(sortedMadTrace, var_names=['~p'], round_to=2))
+        ##
+        # dwell time
+        ##
+        madMeans = abs(trace.posterior['dwell'].mean(("chain", "draw")))
+        madZ = madMeans / trace.posterior['dwell'].std(("chain", "draw"))
+        sortedMadTrace = trace.posterior['dwell'].sortby(madZ)
+        madCoords = madZ.sortby(madZ).coords['kmer'].values
+        plotForest(fnamepfx, 'zsortedforest-dwell-worst', kmer,
+                   sortedMadTrace.sel(kmer=madCoords[:12]))
+        plotForest(fnamepfx, 'zsortedforest-dwell-best', kmer,
+                   sortedMadTrace.sel(kmer=madCoords[-12:]))
 
     # plot the posterior, should be quite fast
     # TODO only plots subset of figures, if there are too many subfigures
@@ -338,11 +327,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
     if posteriorpredictive:
         # rebuild the model with full data!
         # model = buildModel(coords, preMedian, medianZ, madZbc, rel, kmer, rel.shape)
-        print(nmPreMedian.shape)
-        print(nmMedianZ.shape)
-        print(nmRel.shape)
         model = buildModel(coords, nmPreMedian, nmMedianZ,
-                           nmMadZbc, nmRel, kmer, nmRel.shape)
+                           nmMadZbc, nmDwellMeanbc, nmRel, kmer, rel.shape)
         with model:
             log.info('posterior predictive run START')
             assert trace is not None
@@ -468,10 +454,12 @@ def plotForest(fnamepfx, fnamessfx, kmer, trace):
 def plotPosterior(fnamepfx, trace):
     xSize, ySize = 12, 6
     axes = az.plot_posterior(
-        trace, var_names=['intercept', 'preScale'], figsize=(xSize, ySize))
-    for ax in axes.flatten():
-        plt.grid(c='grey')
-        ax.set_facecolor('white')
+        trace, var_names=['intercept'], figsize=(xSize, ySize)) # 'preScale'
+    plt.grid(c='grey')
+    axes.set_facecolor('white')
+    #for ax in axes.flatten():
+    #    plt.grid(c='grey')
+    #    ax.set_facecolor('white')
     plt.savefig(f'{fnamepfx}-posterior.png')
     plt.savefig(f'{fnamepfx}-posterior.pdf')
     plt.close()

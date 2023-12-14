@@ -80,7 +80,7 @@ def main():
     inputs = []
     for ps in args.inputdirs:
         for p in ps:
-            findstr = f'**.pickle.zst'
+            findstr = f'**.{args.kmer}.pickle.zst'
             print(p, findstr)
             for d in glob.glob(join(p, findstr), recursive=True):
                 inputs.append(d)

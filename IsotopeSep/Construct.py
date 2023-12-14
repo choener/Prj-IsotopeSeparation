@@ -65,7 +65,7 @@ class Construct:
             rgdf = pd.DataFrame(index = Kmer.gen(int(kmer)))
             rgdf = rgdf.merge(gg, left_index=True, right_index=True, how='left')
             rgdf.fillna(0, inplace=True)
-            dct = { 'read': r.removeprefix('read_'), 'medianZ': rgdf['medianZ'].values, 'madZ': rgdf['madZ'].values, 'complete': len(gg) == len(rgdf) }
+            dct = { 'read': r.removeprefix('read_'), 'medianZ': rgdf['medianZ'].values, 'madZ': rgdf['madZ'].values, 'dwellMean': rgdf['dwellMean'].values, 'complete': len(gg) == len(rgdf) }
             rowslist.append(dct)
         tmp = pd.DataFrame(rowslist)
         tmp = tmp.set_index('read')

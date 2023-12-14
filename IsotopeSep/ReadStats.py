@@ -56,13 +56,25 @@ assert reads is not None
 
 summaryfile = os.path.join(outdir, "summary.csv.zst")
 
+"""
+Returns the statistics for a k-mer based on the whole read information.
+"""
 
-def appendKx(eachK, r, cnt, readpd, kx):
-    for k in sorted(set(readpd[kx])):
-        medianMed, medianMad = Stats.medianMad(
-            readpd[readpd[kx] == k]['medianZ'])
-        eachK.append(
-            {'read': r, 'k': k, 'medianZ': medianMed, 'madZ': medianMad})
+def genKx(r, readpd, kx):
+    rtrn = []
+    for k,g in readpd.groupby(kx):
+        medianMed, medianMad = Stats.medianMad(g['medianZ'])
+        dwellMean = np.mean(g['dwellTime'])
+        rtrn.append({'read': r, 'k': k, 'medianZ': medianMed, 'madZ': medianMad, 'dwellMean': dwellMean})
+    #rtrn = []
+    #for k in sorted(set(readpd[kx])):
+    #    medianMed, medianMad = Stats.medianMad(
+    #        readpd[readpd[kx] == k]['medianZ'])
+    #    #dwellMed, dwellMad = Stats.medianMad(
+    #    #    readpd[readpd[kx] == k]['dwellTime'])
+    #    dwellMean = np.mean(readpd[readpd[kx] == k]['dwellTime'])
+    #    rtrn.append({'read': r, 'k': k, 'medianZ': medianMed, 'madZ': medianMad, 'dwellMean': dwellMean})
+    return rtrn
 
 # Collect statistics per read and for each read also the kmer statistics
 
@@ -77,6 +89,7 @@ for cnt, r in enumerate(readIDs):
         break
 
     # ignore known reads
+    # BUG ignore reads based on ID in the future!
     if len(reads) > 0 and (cnt < len(reads) or any(reads['read'] == r)):
         print(f'IGNORE [{cnt :5d} / {numR : 5d}] {r}')
     else:
@@ -85,9 +98,13 @@ for cnt, r in enumerate(readIDs):
         medianR, madR = Stats.medianMad(sufRaw)
         pfxMedianR, pfxMadR = Stats.medianMad(preRaw)
         # this is O(n^2), but @n=4000@ over a long while
-        reads = reads.append({'read': r, 'median': medianR, 'mad': madR,
+        new = pd.DataFrame()
+        new = new.append({'read': r, 'median': medianR, 'mad': madR,
                              'pfxMedian': pfxMedianR, 'pfxMad': pfxMadR}, ignore_index=True)
-        reads.to_csv(readsfile, index=False, float_format='%.3f')
+        #reads.to_csv(readsfile, index=False, float_format='%.3f')
+        with zstandard.open(readsfile, 'a') as rf:
+            new.to_csv(rf, index=False, header=(
+                cnt == 0), float_format='%.3f')
 
         # for each nucleotide position in each read ...
         # NOTE the range is only for valid kmers!
@@ -97,17 +114,18 @@ for cnt, r in enumerate(readIDs):
             median, mad = Stats.medianMad(segmented[i])
             medianZ, madZ = Stats.medianMad((segmented[i]-medianR)/madR)
             eachPos.append(
-                {'read': cnt, 'k1': nucs[i:i+1], 'k3': nucs[i-1:i+2], 'k5': nucs[i-2:i+3], 'median': median, 'mad': mad, 'medianZ': medianZ, 'madZ': madZ
+                {'read': cnt, 'k1': nucs[i:i+1], 'k3': nucs[i-1:i+2], 'k5': nucs[i-2:i+3], 'median': median, 'mad': mad, 'medianZ': medianZ, 'madZ': madZ, 'dwellTime': len(segmented[i])
                  })
         readpd = readpd.append(eachPos, ignore_index=True)
-        eachK = []
-        appendKx(eachK, r, cnt, readpd, 'k1')
-        appendKx(eachK, r, cnt, readpd, 'k3')
-        appendKx(eachK, r, cnt, readpd, 'k5')
-        pdeach = pd.DataFrame(eachK)
+        readpd = readpd.sort_values(by='k5') # will be sorted by all kX automatically then!
+        k1 = genKx(r, readpd, 'k1')
+        k3 = genKx(r, readpd, 'k3')
+        k5 = genKx(r, readpd, 'k5')
+        pdeach = pd.DataFrame(k1 + k3 + k5)
         with zstandard.open(summaryfile, 'a') as sf:
             pdeach.to_csv(sf, index=False, header=(
                 cnt == 0), float_format='%.3f')
-        readpd = readpd.drop(['k1', 'k3'], axis=1)
-        readpd.to_csv(os.path.join(
-            outdir, f'{r}.kmers.csv.zst'), index=False, float_format='%.3f')
+        # TODO Not writing out these anymore, since they are not used.
+        #readpd = readpd.drop(['k1', 'k3'], axis=1)
+        #readpd.to_csv(os.path.join(
+        #    outdir, f'{r}.kmers.csv.zst'), index=False, float_format='%.3f')
