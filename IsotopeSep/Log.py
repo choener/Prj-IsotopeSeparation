@@ -112,68 +112,61 @@ def buildTensorVars(preMedian, medianZ, madZbc, obs):
 # TODO make sure to select the correct "rel"s
 
 
-def runModel(zeroRel, oneRel, outputDir, kmer, df, train=True, posteriorpredictive=True, priorpredictive=True, maxsamples=None, sampler="jax", batchSz=1000):
+def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posteriorpredictive=True, priorpredictive=True, maxsamples=None, sampler="jax", batchSz=1000):
 
     fnamepfx = os.path.join(outputDir, f'{kmer}-{sampler}')
 
-    # Perform set selection
-    df = df[(df['rel'] == float(zeroRel)) | (df['rel'] == float(oneRel))]
+    print(constructs[0].df)
+
+    # construct the "df" necessary for the model to continue. this is probably wasteful, but allows us to quickly continue from here on.
+    df = pd.concat([c.df for c in constructs])
     print(df)
-    # TODO only do while training, but might require imputing the missing kmer counts
-    df = df.groupby('read').filter(lambda x: len(x) == 4**int(kmer))
-    print(df)
-    rels = df['rel'].value_counts()
-    rels /= (4**int(kmer))
-    log.info(f'rels: {rels}')
-    df['rel'].loc[df['rel'] == float(zeroRel)] = 0
-    df['rel'].loc[df['rel'] == float(oneRel)] = 1
-    df['rel']
-    print('ZERO', df[df['rel'] == 0])
-    print('ONE', df[df['rel'] == 1])
-    print('LEN', len(df) / (4**int(kmer)))
+    print(float(zeroRel))
+
+
+    df['p'].loc[df['p'] == float(zeroRel)] = 0
+    df['p'].loc[df['p'] == float(oneRel)] = 1
+    df['p']
+    print('ZERO', df[df['p'] == 0])
+    print('ONE', df[df['p'] == 1])
+    print('LEN', len(df))
 
     # prepare subsampling
-    rels = df['rel'].value_counts()
-    log.info(f'rels: {rels}')
-    samplecount = int(min(rels) / (4**int(kmer)))
+    rels = df['p'].value_counts()
+    log.info(f'p: {rels}')
+    samplecount = int(min(rels))
     if maxsamples is not None:
         samplecount = min(samplecount, int(maxsamples))
     sampledreads = []
     for i in rels.index:
-        cands = list(set(df[df['rel'] == i].droplevel('k').index))
+        cands = list(set(df[df['p'] == i].index))
         random.shuffle(cands)
         sampledreads.extend(cands[0:samplecount])
     log.info(f'subsampled {samplecount} reads for each d2o level')
-    df = df[df.droplevel('k').index.isin(sampledreads)]
-    print("subsample", df)
+    df = df[df.index.isin(sampledreads)]
 
-    # The "madZ" values are all positive. We apply a Box-Cox transformation here
-    meanmadz = df[df['madZ'] > 0]['madZ'].mean()
-    # TODO Try using .loc[row_indexer,col_indexer] = value instead
-    df['madZ'] = df['madZ'].apply(lambda x: x if x > 0 else meanmadz)
-    mads, lmbd = scipy.stats.boxcox(df['madZ'])
-    df = df.assign(madZbc=mads)
-    print('LEN', len(df) / (4**int(kmer)))
-    #
-    # NAN tests
-    # print(len(df))
-    # df = df[~np.isnan(df).any(axis=1)]
-    # print(len(df))
-    # df = df[~np.isinf(df).any(axis=1)]
-    # print(len(df))
+    # concatenate all 'madZ' values, perform boxcox to get the lambda
+    madzs = np.concatenate(df['madZ'])
+    madzs = np.delete(madzs, np.where(madzs == 0))
+    _ , lmbd = scipy.stats.boxcox(madzs)
+    df['madZbc'] = df['madZ'].apply(lambda x: scipy.stats.boxcox(x, lmbda = lmbd))
+    print(df)
 
     # determine "nan" reads!
-    nans = np.isnan(df['rel'].to_numpy())
-    print('LEN', len(nans) / (4**int(kmer)))
-    print('nans', len(df[nans]))
+    #nans = np.isnan(df['rel'].to_numpy())
+    #print('LEN', len(nans) / (4**int(kmer)))
+    #print('nans', len(df[nans]))
 
     # transform the column into the correct matrix form
-    medianZ = df['medianZ'].to_xarray()
-    madZbc = df['madZbc'].to_xarray()
-    rel = df['rel'].to_xarray()[:, 0]
-    rel = rel.drop_vars('k')
-    preMedian = df['pfxZ'].to_xarray()
-    relTotalSize = rel.shape
+    #medianZ = df['medianZ'].to_xarray()
+    medianZ = np.array(list(df['medianZ']))
+    #madZbc = df['madZbc'].to_xarray()
+    madZbc = np.array(list(df['madZbc']))
+    #rel = df['p'].to_xarray()
+    rel = np.array(list(df['p']))
+    #preMedian = df['pfxZ'].to_xarray()
+    preMedian = np.array(list(df['pfxZ']))
+    #relTotalSize = rel.shape
 
     # TODO hints on how to implement minibatches, which will require creating a single, huge matrix,
     # then splitting again
@@ -186,8 +179,8 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train=True, posteriorpredicti
     coords = {'kmer': Kmer.gen(int(kmer))
               }
 
-    nmPreMedian, nmMedianZ, nmMadZbc, nmRel = buildTensorVars(
-        preMedian, medianZ, madZbc, rel)
+    #nmPreMedian, nmMedianZ, nmMadZbc, nmRel = buildTensorVars(
+    #    preMedian, medianZ, madZbc, rel)
 
     # TODO profile model (especially for k=5)
 
@@ -214,7 +207,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, df, train=True, posteriorpredicti
         match sampler:
             case "adagrad":
                 mbPreMedian, mbMedianZ, mbMadZbc, mbRel = pm.Minibatch(
-                    nmPreMedian, nmMedianZ, nmMadZbc, nmRel, batch_size=batchSz)
+                    preMedian, medianZ, madZbc, rel, batch_size=batchSz)
                 model = buildModel(coords, mbPreMedian,
                                    mbMedianZ, mbMadZbc, mbRel, kmer, rel.shape)
                 # run the model with mini batches
