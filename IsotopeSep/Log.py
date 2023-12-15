@@ -79,6 +79,7 @@ def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, 
         #preChange = pScale * preMedian
         rowSum = pm.math.dot(medianZ, kScale) # medianZ-preChange, does not improve predictions, hence left out for now
         rowSum += pm.math.dot(madZbc, mScale)
+        # BUG Use switch to enable / disable dwell times
         rowSum += pm.math.dot(meanDwellbc, dwellScale)
         predpcnt = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
         log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
@@ -156,6 +157,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
     dwellmeans = np.delete(dwellmeans, np.where(dwellmeans==0))
     _, lmbdDwellMeans = scipy.stats.boxcox(dwellmeans)
     df['dwellMeanbc'] = df['dwellMean'].apply(lambda x: scipy.stats.boxcox(x, lmbda = lmbdDwellMeans))
+    df['dwellMeanbc'] = df['dwellMeanbc'].apply(lambda x: np.nan_to_num(x, nan=0, posinf=0, neginf=0))
 
     # determine "nan" reads!
     #nans = np.isnan(df['rel'].to_numpy())
@@ -362,7 +364,13 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
             falseDiscoveryRate(fnamepfx, mppmean, obs)
 
 
-# Plots the model response error. For each sample, presence of isotopes is predicted within [0..1]. The error is the distance to the true class. In addition, we plot a horizontal line at 0.5. All points below are predicted correctly, all points above incorrectly. Two vertical lines show the fraction until which the error rate is below 0.5.
+# Plots the model response error. For each sample, presence of isotopes is
+# predicted within [0..1]. The error is the distance to the true class. In
+# addition, we plot a horizontal line at 0.5. All points below are predicted
+# correctly, all points above incorrectly. Two vertical lines show the fraction
+# until which the error rate is below 0.5.
+
+# BUG Check for bugs, including NANs, INFs, etc. This probably leads to the weird class problems here!
 
 def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     print(mppmean)
