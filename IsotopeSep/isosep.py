@@ -7,9 +7,8 @@ import logging as log
 import matplotlib as pl
 import pandas as pd
 import pymc as mc
-from hashlib import sha512
 import glob
-import gc
+from time import gmtime, strftime
 
 import Construct
 import Log
@@ -28,8 +27,9 @@ NOTE Reading 'reads' is costly only the first run, we pickles immediately, then 
 
 def main():
     FORMAT = '%(asctime)s %(message)s'
+    logname = strftime("%Y-%m-%d-%H:%M:%S", gmtime())
     logging.basicConfig(format=FORMAT, level=logging.DEBUG,
-                        filename='isosep.log', filemode='a')
+                        filename=f'isosep-{logname}.log', filemode='a')
     logging.info(f'PyMC v{mc.__version__}')
     parser = argparse.ArgumentParser()
     parser.add_argument('--logstderr', action='store_true',
@@ -60,6 +60,9 @@ def main():
                         help='relative abundance mapped to True')
     parser.add_argument('--onlycomplete', default=False, action='store_true',
                         help='will remove incomplete reads, say for training')
+    # for cross-validation it will be convenient to select from the reads that would given to the model.
+    # NOTE while slightly less precise in the selection of the reads to use, just splitting the reads up themselves is much more convenient!
+    # parser.add_argument('--readselection', action='append', nargs='+', help='select a range of reads to be used')
     args = parser.parse_args()
     if args.logstderr is True:
         logging.getLogger().addHandler(logging.StreamHandler())
@@ -102,6 +105,7 @@ def main():
             construct.onlycomplete()
         # TODO Need to remove from construct.df those reads that are not part of the any barcode
         constructs.append(construct)
+    # provide total length information. Can be used together with readselection.
 
     log.info(
         f'Model data loaded')

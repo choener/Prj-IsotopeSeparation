@@ -37,11 +37,9 @@ class Construct:
         self.df = None
 
     def __len__(self):
-        tot = 0
-        for i in self.dfgroups:
-            tot += len(i)
-        return tot
-        # return (len(self.finishedReads))
+        if self.df is not None:
+            return len(self.df)
+        else: return 0
 
     # Add a dataframe with kmer information for further processing
     # this will reduce the dataframe to key pairs (kmer,relative d2o) with mean values for medianZ and
@@ -73,11 +71,11 @@ class Construct:
         self.df = tmp
 
     def addfilterbarcodes(self, barcodes):
-        before = len(self.df)
+        assert self.df is not None
         self.df = self.df.merge(barcodes, how='inner', left_index=True, right_index=True)
-        after = len(self.df)
 
     def onlycomplete(self):
+        assert self.df is not None
         c = self.df['complete']
         self.df = self.df[c]
 

@@ -66,22 +66,21 @@ def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, 
         log.info(f'meanDwellbc shape: {meanDwellbc.shape}')
         log.info(f'observed shape: {observed.shape}')
 
-        #pScale = pm.Beta('preScale', 0.5, 0.5)
+        pScale = pm.Beta('preScale', 0.5, 0.5) # this is a scalar
         kScale = pm.Normal('scale', 0, 1, dims='kmer')
         mScale = pm.Normal('mad', 0, 1, dims='kmer')
         intercept = pm.Normal('intercept', 0, 10)
         dwellScale = pm.Normal('dwell', 0, 1, dims='kmer')
-        #log.info(f'pScale shape: {pScale.shape}')
+        log.info(f'pScale shape: {pScale.shape}')
         log.info(f'kScale shape: {kScale.shape}')
         log.info(f'mScale shape: {mScale.shape}')
         log.info(f'intercept shape: {intercept.shape}')
 
-        #preChange = pScale * preMedian
         rowSum = pm.math.dot(medianZ, kScale) # medianZ-preChange, does not improve predictions, hence left out for now
         rowSum += pm.math.dot(madZbc, mScale)
-        # BUG Use switch to enable / disable dwell times
+        # BUG Use switch to enable / disable dwell times (not a "bug", rather convenience since numbers show that dwell times are not helpful -- for D2O!)
         rowSum += pm.math.dot(meanDwellbc, dwellScale)
-        predpcnt = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum))
+        predpcnt = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum * pScale))
         log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
 
         # obs = pm.Normal("obs", mu=predpcnt, sigma=err, observed=pcnt)
@@ -384,6 +383,8 @@ def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     p1 = p1.sortby(p1)
     p1good = len(p1.where(lambda x: x < 0.5, drop=True))
     _, ax = plt.subplots(figsize=(6, 6))
+    df = pd.DataFrame({'p0': p0, 'p1': p1})
+    df.to_csv(f'{fnamepfx}-response.csv', index=False)
     ax.set_facecolor('white')
     plt.grid(c='grey')
     plt.axhline(y=0.5, color='black', linestyle='-', linewidth=linew)
@@ -397,8 +398,8 @@ def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     plt.annotate(f'{p1good / max(1,len(p1)):.2f}',
                  xy=(p1good, 0.4), color=cBlue, fontsize=fontsz)
     # horizontal line at error 0.5
-    ax.set_xlabel('Samples (ordered)', fontsize=fontsz)
-    ax.set_ylabel('Distance to true class (less is better)', fontsize=fontsz)
+    ax.set_xlabel('Samples (ordered by distance)', fontsize=fontsz)
+    ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
     ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)
     ax.legend(frameon=True, facecolor='white', framealpha=1.0,
@@ -494,6 +495,7 @@ def falseDiscoveryRate(fnamepfx, mppmean, obs):
         fs = cs[cs > 0.5]
         ys = np.append(ys, len(fs) / max(1, len(cs)))
         ns = np.append(ns, len(ms) / len(mppmean))
+    # this data is also useful for cross validation plots
     df = pd.DataFrame({'cutoff': rs, 'fdr': ys, 'relreads': ns})
     df.to_csv(f'{fnamepfx}-fdr.csv', index=False)
     fig, ax1 = plt.subplots(figsize=(6, 6))
