@@ -9,5 +9,5 @@ go() {
 }
 
 export -f go
-parallel go {} {#} ::: ../_data/d2o/raw_data/*.fast5
+parallel go {} {#} ::: ./raw_data/*.fast5
 
