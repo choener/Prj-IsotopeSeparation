@@ -383,6 +383,8 @@ def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     p1 = p1.sortby(p1)
     p1good = len(p1.where(lambda x: x < 0.5, drop=True))
     _, ax = plt.subplots(figsize=(6, 6))
+    print(p0,p1)
+    assert len(p0) == len(p1)
     df = pd.DataFrame({'p0': p0, 'p1': p1})
     df.to_csv(f'{fnamepfx}-response.csv', index=False)
     ax.set_facecolor('white')
