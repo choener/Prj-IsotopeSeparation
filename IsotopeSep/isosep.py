@@ -26,11 +26,6 @@ NOTE Reading 'reads' is costly only the first run, we pickles immediately, then 
 
 
 def main():
-    FORMAT = '%(asctime)s %(message)s'
-    logname = strftime("%Y-%m-%d-%H:%M:%S", gmtime())
-    logging.basicConfig(format=FORMAT, level=logging.DEBUG,
-                        filename=f'isosep-{logname}.log', filemode='a')
-    logging.info(f'PyMC v{mc.__version__}')
     parser = argparse.ArgumentParser()
     parser.add_argument('--logstderr', action='store_true',
                         default=False, help='log to stderr as well')
@@ -64,6 +59,13 @@ def main():
     # NOTE while slightly less precise in the selection of the reads to use, just splitting the reads up themselves is much more convenient!
     # parser.add_argument('--readselection', action='append', nargs='+', help='select a range of reads to be used')
     args = parser.parse_args()
+    # setup logging
+    FORMAT = '%(asctime)s %(message)s'
+    logname = strftime("%Y-%m-%d-%H:%M:%S", gmtime())
+    logging.basicConfig(format=FORMAT, level=logging.DEBUG,
+                        filename=f'{args.outputdir}/isosep-{logname}.log', filemode='a')
+    logging.info(f'PyMC v{mc.__version__}')
+    #
     if args.logstderr is True:
         logging.getLogger().addHandler(logging.StreamHandler())
     # checks
