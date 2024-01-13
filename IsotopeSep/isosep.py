@@ -65,6 +65,7 @@ def main():
     logging.basicConfig(format=FORMAT, level=logging.DEBUG,
                         filename=f'{args.outputdir}/isosep-{logname}.log', filemode='a')
     logging.info(f'PyMC v{mc.__version__}')
+    logging.info(args)
     #
     if args.logstderr is True:
         logging.getLogger().addHandler(logging.StreamHandler())
