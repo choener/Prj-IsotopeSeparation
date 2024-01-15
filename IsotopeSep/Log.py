@@ -58,7 +58,7 @@ optimization.
 """
 
 
-def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, totalSz, batchSz=1000):
+def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, totalSz, batchSz=1000, dwellTimes=True):
     with pm.Model(coords=coords) as model:
         log.info(f'preMedian shape: {preMedian.shape}')
         log.info(f'medianZ shape: {medianZ.shape}')
@@ -70,7 +70,9 @@ def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, 
         kScale = pm.Normal('scale', 0, 1, dims='kmer')
         mScale = pm.Normal('mad', 0, 1, dims='kmer')
         intercept = pm.Normal('intercept', 0, 10)
-        dwellScale = pm.Normal('dwell', 0, 1, dims='kmer')
+        dwellScale = None
+        if dwellTimes:
+            dwellScale = pm.Normal('dwell', 0, 1, dims='kmer')
         log.info(f'pScale shape: {pScale.shape}')
         log.info(f'kScale shape: {kScale.shape}')
         log.info(f'mScale shape: {mScale.shape}')
@@ -79,7 +81,8 @@ def buildModel(coords, preMedian, medianZ, madZbc, meanDwellbc, observed, kmer, 
         rowSum = pm.math.dot(medianZ, kScale) # medianZ-preChange, does not improve predictions, hence left out for now
         rowSum += pm.math.dot(madZbc, mScale)
         # BUG Use switch to enable / disable dwell times (not a "bug", rather convenience since numbers show that dwell times are not helpful -- for D2O!)
-        rowSum += pm.math.dot(meanDwellbc, dwellScale)
+        if dwellTimes:
+            rowSum += pm.math.dot(meanDwellbc, dwellScale)
         predpcnt = pm.Deterministic('p', pm.math.invlogit(intercept + rowSum * pScale))
         log.info(f'sum shapes: {rowSum.shape} {predpcnt.shape}')
 
@@ -112,7 +115,7 @@ def buildTensorVars(preMedian, medianZ, madZbc, obs, dwellMeanbc):
 # TODO make sure to select the correct "rel"s
 
 
-def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posteriorpredictive=True, priorpredictive=True, maxsamples=None, sampler="jax", batchSz=1000):
+def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posteriorpredictive=True, priorpredictive=True, maxsamples=None, sampler="jax", batchSz=1000, dwellTimes=True):
 
     fnamepfx = os.path.join(outputDir, f'{kmer}-{sampler}')
 
@@ -216,7 +219,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
                 mbPreMedian, mbMedianZ, mbMadZbc, mbRel, mbDwellMeanbc = pm.Minibatch(
                     nmPreMedian, nmMedianZ, nmMadZbc, nmRel, nmDwellMeanbc, batch_size=batchSz)
                 model = buildModel(coords, mbPreMedian,
-                                   mbMedianZ, mbMadZbc, mbDwellMeanbc, mbRel, kmer, rel.shape)
+                                   mbMedianZ, mbMadZbc, mbDwellMeanbc, mbRel, kmer, rel.shape, dwellTimes)
                 # run the model with mini batches
                 with model:
                     mf: pm.MeanField = pm.fit(

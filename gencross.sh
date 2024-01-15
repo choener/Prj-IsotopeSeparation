@@ -41,15 +41,15 @@ go() {
   then
     dwellpart="dwellYES"
   fi
-  partialpart="partialNO"
-  if [[ $4 == "--partialreads" ]]
+  partialpart="partialYES"
+  if [[ $4 == "--onlycomplete" ]]
   then
-    partialpart="partialYES"
+    partialpart="partialNO"
   fi
   trainname="cross-0-${2}-${dwellpart}-${partialpart}/train-not${1}"
   testname="cross-0-${2}-${dwellpart}-${partialpart}/test-is${1}"
-  mkdir -p trainname
-  mkdir -p testname
+  mkdir -p $trainname
+  mkdir -p $testname
   echo $1
   echo $2
   echo $3
@@ -67,7 +67,10 @@ go() {
       --sampler adagrad \
       --posteriorpredictive \
       --train \
-      --outputdir "${trainname}"
+      --outputdir "${trainname}" \
+      $3 $4
+  else
+    echo "already done"
   fi
   # test only if netcdf does not exist
   if [[ ! -f "${testname}/5-adagrad-trace.netcdf" ]]
@@ -82,13 +85,16 @@ go() {
       --kmer 5 \
       --sampler adagrad \
       --posteriorpredictive \
-      --outputdir "${testname}"
+      --outputdir "${testname}" \
+      $3 $4
+  else
+    echo "already done"
   fi
 }
 
 export -f go
 
-parallel --jobs 1 go {} {} {} {} ::: 1 2 3 4 5 ::: 30 100 ::: "" "--dwell" ::: "" "--partialreads"
+parallel --jobs 1 go {} {} {} {} ::: 1 2 3 4 5 ::: 30 100 ::: "" "--dwell" ::: "" "--onlycomplete"
 
 #./IsotopeSep/isosep.py --barcode 0 taubert-d2o/barcode14.ids --barcode 100 taubert-d2o/barcode16.ids --inputdirs ../_data/d2o/crossvalidation/[2,3,4,5] --zero 0.0 --one 1.0 --kmer 5 --sampler adagrad --posteriorpredictive --train --outputdir cross-0-100/train-2345
 #./IsotopeSep/isosep.py --barcode 0 taubert-d2o/barcode14.ids --barcode 100 taubert-d2o/barcode16.ids --inputdirs ../_data/d2o/crossvalidation/[1,3,4,5] --zero 0.0 --one 1.0 --kmer 5 --sampler adagrad --posteriorpredictive --train --outputdir cross-0-100/train-1345

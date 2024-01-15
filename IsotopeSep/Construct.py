@@ -77,7 +77,14 @@ class Construct:
     def onlycomplete(self):
         assert self.df is not None
         c = self.df['complete']
-        self.df = self.df[c]
+        thec = self.df[c]
+        zeros = self.df['medianZ']
+        zeros = zeros.to_numpy()
+        zeros = [ np.count_nonzero(z==0)<250 for z in zeros ]
+        tmp = self.df[zeros]
+        print(len(self.df),len(tmp),len(thec))
+        #bang
+        self.df = tmp
 
     def save(self, fname):
         with zstandard.open(fname, 'wb') as f:

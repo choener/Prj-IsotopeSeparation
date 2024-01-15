@@ -55,6 +55,8 @@ def main():
                         help='relative abundance mapped to True')
     parser.add_argument('--onlycomplete', default=False, action='store_true',
                         help='will remove incomplete reads, say for training')
+    parser.add_argument('--dwell', default=False, action='store_true',
+                        help='include dwell time in training')
     # for cross-validation it will be convenient to select from the reads that would given to the model.
     # NOTE while slightly less precise in the selection of the reads to use, just splitting the reads up themselves is much more convenient!
     # parser.add_argument('--readselection', action='append', nargs='+', help='select a range of reads to be used')
@@ -115,7 +117,7 @@ def main():
     # TODO make sure to select correct targets
     if args.train or args.posteriorpredictive or args.priorpredictive:
         Log.runModel(args.zero, args.one, args.outputdir, args.kmer,
-                     constructs, train=args.train, posteriorpredictive=args.posteriorpredictive, priorpredictive=args.priorpredictive, maxsamples=args.maxsamples, sampler=args.sampler)
+                     constructs, train=args.train, posteriorpredictive=args.posteriorpredictive, priorpredictive=args.priorpredictive, maxsamples=args.maxsamples, sampler=args.sampler, dwellTimes=args.dwell)
 
 
 if __name__ == "__main__":

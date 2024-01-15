@@ -3,16 +3,11 @@
 # Reads in a number of *csv files to generate cross-validation plots.
 # Each directory given is assumed to be one instance of cross-validation.
 
+from collections import OrderedDict
 from os.path import exists, isfile, join, dirname, split
 import argparse
-import logging
-import logging as log
-import matplotlib as pl
 import matplotlib.pyplot as plt
 import pandas as pd
-import pymc as mc
-import glob
-from time import gmtime, strftime
 import arviz as az
 import numpy as np
 
@@ -43,33 +38,31 @@ def plotFDR(fs, k, withmean, withstddev, withlines):
     fdr = []
     relreads = []
     # individual lines, and data collection
-    for i,f in enumerate(fs):
+    for f in fs:
         df = pd.read_csv(join(f,f'{k}-adagrad-fdr.csv'))
         fdr.append(df.fdr)
         relreads.append(df.relreads)
-        lbl = None
-        if i == 0:
-            lbl = f'FDR'
         if withlines:
-            ax2.plot(df.cutoff, df.fdr, '.', color='black', label=lbl)
-        lbl = None
-        if i == 0:
-            lbl = f'Fraction of reads'
-        if withlines:
-            ax1.plot(df.cutoff, df.relreads, '.', color='blue', label=lbl)
+            ax1.plot(df.cutoff, df.relreads, '.', color='blue', label=f'Fraction of reads')
+            ax2.plot(df.cutoff, df.fdr, '.', color='black', label=f'FDR')
     # plot mean and standard deviation
     if withstddev:
         m = np.mean(fdr, axis=0)
         s = np.std(fdr, axis=0)
-        ax2.fill_between(df.cutoff, m+s,m-s, color='black', alpha=0.2)
+        ax2.fill_between(df.cutoff, m+s,m-s, color='black', alpha=0.3, label='FDR')
         m = np.mean(relreads, axis=0)
         s = np.std(relreads, axis=0)
-        ax1.fill_between(df.cutoff, m+s,m-s, color='blue', alpha=0.2)
+        ax1.fill_between(df.cutoff, m+s,m-s, color='blue', alpha=0.3, label='Fraction of reads')
     if withmean:
-        ax2.plot(df.cutoff, np.mean(fdr, axis=0), color='black')
-        ax1.plot(df.cutoff, np.mean(relreads, axis=0), color='blue')
+        ax2.plot(df.cutoff, np.mean(fdr, axis=0), color='black', label='FDR')
+        ax1.plot(df.cutoff, np.mean(relreads, axis=0), color='blue', label='Fraction of reads')
     # finish up
-    fig.legend(frameon=True, facecolor='white', framealpha=1.0,
+    handles1, labels1 = ax1.get_legend_handles_labels()
+    handles2, labels2 = ax2.get_legend_handles_labels()
+    print(handles1,labels1)
+    print(handles2,labels2)
+    by_label = OrderedDict(zip(labels1 + labels2, handles1 + handles2))
+    fig.legend(by_label.values(), by_label.keys(), frameon=True, facecolor='white', framealpha=1.0,
                loc='lower right', bbox_to_anchor=(0.85, 0.15))
     plt.savefig(f'{k}-cross-fdr.png')
     plt.savefig(f'{k}-cross-fdr.pdf')
@@ -95,38 +88,35 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
         hist0, _ = np.histogram(xp0, bins=200, weights=df.p0) # sum up weights
         hist0 = hist0 / histDiv
         hist0s.append(hist0)
-        lbl = None
-        if i == 0:
-            lbl = zeroLabel
         if withlines:
             ax.plot(xp0, df.p0, color=cOrange,
-                    label=lbl, linewidth=linew)
+                    label=zeroLabel, linewidth=linew)
         xp1 = np.arange(len(df.p1)) / len(df.p1)
         histDiv, _ = np.histogram(xp1, bins=200) # count number of elements per bin
         hist1, _ = np.histogram(xp1, bins=200, weights=df.p1) # sum up weights
         hist1 = hist1 / histDiv
         hist1s.append(hist1)
-        if i == 0:
-            lbl = oneLabel
         if withlines:
-            ax.plot(xp1, df.p1, color=cBlue, label=lbl, linewidth=linew)
+            ax.plot(xp1, df.p1, color=cBlue, label=oneLabel, linewidth=linew)
     # mean and stddev
     if withstddev:
         m = np.mean(hist0s, axis=0)
         s = np.std(hist0s, axis=0)
-        ax.fill_between(np.arange(0,1,0.005), m+s,m-s, color=cOrange, alpha=0.2)
+        ax.fill_between(np.arange(0,1,0.005), m+s,m-s, color=cOrange, alpha=0.3, label=zeroLabel)
         m = np.mean(hist1s, axis=0)
         s = np.std(hist1s, axis=0)
-        ax.fill_between(np.arange(0,1,0.005), m+s,m-s, color=cBlue, alpha=0.2)
+        ax.fill_between(np.arange(0,1,0.005), m+s,m-s, color=cBlue, alpha=0.3, label=oneLabel)
     if withmean:
-        ax.plot(np.arange(0,1,0.005), np.mean(hist0s, axis=0), color=cOrange)
-        ax.plot(np.arange(0,1,0.005), np.mean(hist1s, axis=0), color=cBlue)
+        ax.plot(np.arange(0,1,0.005), np.mean(hist0s, axis=0), color=cOrange, label=zeroLabel)
+        ax.plot(np.arange(0,1,0.005), np.mean(hist1s, axis=0), color=cBlue, label=oneLabel)
     # horizontal line at error 0.5
     ax.set_xlabel('Samples (ordered by distance)', fontsize=fontsz)
     ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
     ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)
-    ax.legend(frameon=True, facecolor='white', framealpha=1.0,
+    handles, labels = plt.gca().get_legend_handles_labels()
+    by_label = OrderedDict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys(), frameon=True, facecolor='white', framealpha=1.0,
               loc='upper left', bbox_to_anchor=(0.1, 0.9))
     # averages !
     p0good = np.mean(p0s)
