@@ -13,9 +13,9 @@ import numpy as np
 
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
-fontsz = 12  # fontsize
-titlesz = 16  # fontsize for title
-linew = 2  # line width of important lines
+fontsz = 18  # fontsize
+titlesz = 26  # fontsize for title
+linew = 3  # line width of important lines
 cOrange = '#d95f02'
 cBlue = '#7570b3'
 cGreen = '#1b9e77'
@@ -33,7 +33,7 @@ def plotFDR(fs, k, withmean, withstddev, withlines):
     ax2.set_ylabel('FDR', fontsize=fontsz)
     ax2.set_title('False discovery rate', fontsize=titlesz)
     ax2.grid(None)
-    ax1.set_ylabel('Fraction of reads', fontsize=fontsz)
+    ax1.set_ylabel('% reads', fontsize=fontsz)
     # buckets for fdr between 0 and 0.5
     fdr = []
     relreads = []
@@ -43,7 +43,7 @@ def plotFDR(fs, k, withmean, withstddev, withlines):
         fdr.append(df.fdr)
         relreads.append(df.relreads)
         if withlines:
-            ax1.plot(df.cutoff, df.relreads, '.', color='blue', label=f'Fraction of reads')
+            ax1.plot(df.cutoff, df.relreads, '.', color='blue', label=f'% reads')
             ax2.plot(df.cutoff, df.fdr, '.', color='black', label=f'FDR')
     # plot mean and standard deviation
     if withstddev:
@@ -52,10 +52,10 @@ def plotFDR(fs, k, withmean, withstddev, withlines):
         ax2.fill_between(df.cutoff, m+s,m-s, color='black', alpha=0.3, label='FDR')
         m = np.mean(relreads, axis=0)
         s = np.std(relreads, axis=0)
-        ax1.fill_between(df.cutoff, m+s,m-s, color='blue', alpha=0.3, label='Fraction of reads')
+        ax1.fill_between(df.cutoff, m+s,m-s, color='blue', alpha=0.3, label='% reads')
     if withmean:
         ax2.plot(df.cutoff, np.mean(fdr, axis=0), color='black', label='FDR')
-        ax1.plot(df.cutoff, np.mean(relreads, axis=0), color='blue', label='Fraction of reads')
+        ax1.plot(df.cutoff, np.mean(relreads, axis=0), color='blue', label='% reads')
     # finish up
     handles1, labels1 = ax1.get_legend_handles_labels()
     handles2, labels2 = ax2.get_legend_handles_labels()
@@ -63,7 +63,9 @@ def plotFDR(fs, k, withmean, withstddev, withlines):
     print(handles2,labels2)
     by_label = OrderedDict(zip(labels1 + labels2, handles1 + handles2))
     fig.legend(by_label.values(), by_label.keys(), frameon=True, facecolor='white', framealpha=1.0,
-               loc='lower right', bbox_to_anchor=(0.85, 0.15))
+               loc='lower right', bbox_to_anchor=(0.85, 0.10), fontsize=fontsz)
+    plt.xticks(fontsize = fontsz)
+    plt.yticks(fontsize = fontsz)
     plt.savefig(f'{k}-cross-fdr.png')
     plt.savefig(f'{k}-cross-fdr.pdf')
     plt.close()
@@ -117,16 +119,18 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = OrderedDict(zip(labels, handles))
     ax.legend(by_label.values(), by_label.keys(), frameon=True, facecolor='white', framealpha=1.0,
-              loc='upper left', bbox_to_anchor=(0.1, 0.9))
+              loc='upper left', bbox_to_anchor=(0.1, 0.9), fontsize=fontsz)
     # averages !
     p0good = np.mean(p0s)
     p1good = np.mean(p1s)
     plt.axvline(x=p0good, color=cOrange, linestyle='solid', linewidth=linew)
     plt.annotate(f'{p0good:.2f}',
-                 xy=(p0good-0.1, 0.75), color=cOrange, fontsize=fontsz)
+                 xy=(p0good-0.15, 0.75), color=cOrange, fontsize=fontsz)
     plt.axvline(x=p1good, color=cBlue, linestyle='solid', linewidth=linew)
     plt.annotate(f'{p1good:.2f}',
                  xy=(p1good+0.03, 0.25), color=cBlue, fontsize=fontsz)
+    plt.xticks(fontsize = fontsz)
+    plt.yticks(fontsize = fontsz)
     plt.savefig(f'{k}-model-error.png')
     plt.savefig(f'{k}-model-error.pdf')
     plt.close()
