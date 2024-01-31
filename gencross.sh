@@ -79,7 +79,7 @@ go() {
     ./IsotopeSep/isosep.py \
       --barcode 0 taubert-d2o/barcode14.ids \
       --barcode $2 $barcodeOne \
-      --inputdirs ../_data/d2o/crossvalidation/[1] \
+      --inputdirs ../_data/d2o/crossvalidation/["${1}"] \
       --zero 0.0 \
       --one $barcodeNum \
       --kmer 5 \
