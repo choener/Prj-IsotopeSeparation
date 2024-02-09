@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import arviz as az
 import numpy as np
+from functools import reduce
+import seaborn as sb
 
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
@@ -135,6 +137,104 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
     plt.savefig(f'{k}-model-error.pdf')
     plt.close()
 
+# Generate common plots of best and worst kmers from the netcdf data
+#        scaleMeans = abs(trace.posterior["scale"].mean(("chain", "draw")))
+#        scaleZ = scaleMeans / trace.posterior["scale"].std(("chain", "draw"))
+#        sortedScaleTrace = trace.posterior["scale"].sortby(scaleZ)
+#        scaleCoords = scaleZ.sortby(scaleZ).coords['kmer'].values
+#        # best 10 scale values
+#        plotForest(fnamepfx, 'zsortedforest-scale-worst', kmer,
+#                   sortedScaleTrace.sel(kmer=scaleCoords[:12]))
+
+def plotForests(fs):
+    ts = [ az.from_netcdf(join(f,f'5-adagrad-trace.netcdf')) for f in fs ]
+    def go(tyname,ts):
+        for w in ["scale", "mad"]:
+            scs = []
+            for t in ts:
+                means = abs(t.posterior[w].mean(("chain","draw")))
+                z = means / 1 # t.posterior["scale"].std(("chain","draw"))
+                s = t.posterior[w].sortby(z)
+                c = z.sortby(z).coords['kmer'].values
+                scs.append((s,c))
+            # best
+            # collect the *set* of kmers to use
+            kmers = list(reduce(set.union, [set(c[-10:]) for (_,c) in scs]))
+            print(kmers)
+            plotForest(f'{w}-{tyname}', [ s.sel(kmer=kmers) for (s,c) in scs ])
+            # worst
+    go ("sep",ts)
+    go ("join",[az.concat(ts, dim="draw")])
+
+def plotForest(name, traces):
+    _, _, n = traces[0].shape
+    plt.rcParams["font.family"] = "monospace"
+    ySize = min(256, n)
+    fig, ax = plt.subplots(figsize=(6, ySize))
+    ax.set_facecolor('white')
+    legend = ax.get_legend()
+    if legend is not None:
+        for text in legend.get_texts():
+            if text is not None:
+                text.set(fontsize=fontsz)
+    plt.grid(c='grey')
+    mn = None
+    if (len(traces)>1):
+        mn = [ f'cross-{i}' for i in list(range(1,len(traces)+1))]
+    az.plot_forest(traces, var_names=['~p'], figsize=(6,ySize), ax=ax
+                  ,model_names = mn, textsize=fontsz)
+    plt.savefig(f'{name}.png')
+    plt.savefig(f'{name}.pdf')
+    plt.close()
+
+#    positions = pd.DataFrame(
+#        data=0, columns=["A", "C", "G", "T"], index=list(range(1, int(kmer)+1)))
+#    posData = abs(trace.posterior["scale"].mean(("chain", "draw")))
+#    posData = posData
+#    print(posData)
+#    for cell in posData:
+#        nucs = cell["kmer"].item()
+#        v = float(cell.values)
+#        for i, n in enumerate(nucs):
+#            positions.at[i+1, n] = positions.at[i+1, n] + \
+#                (v / 4**(float(kmer)-1))
+#    log.info(positions)
+#    sb.heatmap(positions, annot=True, fmt=".2f", annot_kws={"size": 20})
+#    plt.savefig(f'{fnamepfx}-positionimportance.png')
+#    plt.savefig(f'{fnamepfx}-positionimportance.pdf')
+#    plt.close()
+def posImportance(kmer,fs):
+    ts = [ az.from_netcdf(join(f,f'5-adagrad-trace.netcdf')) for f in fs ]
+    positions = []
+    # go over all traces, collect the kmers and scores, append to positions
+    for it,t in enumerate(ts):
+        posData=abs(t.posterior['scale'].mean(('chain','draw')))
+        for p in posData:
+            ns = p['kmer'].item()
+            v = float(p.values)
+            for i,n in enumerate(ns):
+                positions.append({'Nucleotide': n, 'Position': i, 'cross': it, 'v': v})
+    # now create mean and stddev for each
+    df = pd.DataFrame(positions)
+    # mean over chains and draws
+    npc = df.groupby(['Nucleotide','Position','cross']).median()
+    # final table
+    npmean = npc.groupby(['Nucleotide','Position']).mean()
+    npstd = npc.groupby(['Nucleotide','Position']).std()
+    npmean = npmean.reset_index()
+    npstd = npstd.reset_index()
+    npmean = npmean.pivot(index='Position', columns='Nucleotide', values='v').to_numpy()
+    print(npmean)
+    npstd = npstd.pivot(index='Position', columns='Nucleotide', values='v').to_numpy()
+    print(npstd)
+    annot = np.char.add( np.vectorize(lambda v: f'{v:.2f} ± ')(npmean)
+                  , np.vectorize(lambda v: f'{v:.2f}')(npstd))
+    sb.heatmap(npmean, annot=annot, fmt='', annot_kws={"size":15})
+    plt.savefig(f'positionimportance.png')
+    plt.savefig(f'positionimportance.pdf')
+    plt.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--inputdirs', nargs='+',
@@ -148,8 +248,10 @@ def main():
     args = parser.parse_args()
     ids = [f for fs in args.inputdirs for f in fs]
     print(ids)
-    plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines)
-    plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
+    #plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines)
+    #plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
+    #plotForests(ids)
+    posImportance(args.kmer,ids)
 
 if __name__ == "__main__":
     main()
