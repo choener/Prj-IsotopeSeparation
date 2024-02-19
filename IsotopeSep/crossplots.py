@@ -24,7 +24,7 @@ cGreen = '#1b9e77'
 
 # Plots the FDR for all members of the cross-validation set.
 
-def plotFDR(fs, k, withmean, withstddev, withlines):
+def plotFDR(fs, k, withmean, withstddev, withlines, fdrselection):
     #df = pd.DataFrame({'cutoff': rs, 'fdr': ys, 'relreads': ns})
     #df.to_csv(f'{fnamepfx}-fdr.csv', index=False)
     fig, ax1 = plt.subplots(figsize=(6, 6))
@@ -56,13 +56,21 @@ def plotFDR(fs, k, withmean, withstddev, withlines):
         s = np.std(relreads, axis=0)
         ax1.fill_between(df.cutoff, m+s,m-s, color='blue', alpha=0.3, label='% reads')
     if withmean:
-        ax2.plot(df.cutoff, np.mean(fdr, axis=0), color='black', label='FDR')
-        ax1.plot(df.cutoff, np.mean(relreads, axis=0), color='blue', label='% reads')
+        fdrmean = np.mean(fdr,axis=0)
+        relreadsmean = np.mean(relreads,axis=0)
+        ax2.plot(df.cutoff, fdrmean, color='black', label='FDR')
+        ax1.plot(df.cutoff, relreadsmean, color='blue', label='% reads')
+        # find index of largest fdr <= fdrselection and print cutoff and percent reads
+        if fdrselection is not None:
+            print(fdrmean)
+            print(float(fdrselection))
+            fdrindex = np.argmax (fdrmean >= float(fdrselection)) -1
+            print(fdrmean <= float(fdrselection))
+            print(fdrindex)
+            print(f'fdr index: {fdrindex}, fdr: {fdrmean[fdrindex]}, Cutoff: {df.cutoff[fdrindex]}, Pcnt reads: {relreadsmean[fdrindex]}')
     # finish up
     handles1, labels1 = ax1.get_legend_handles_labels()
     handles2, labels2 = ax2.get_legend_handles_labels()
-    print(handles1,labels1)
-    print(handles2,labels2)
     by_label = OrderedDict(zip(labels1 + labels2, handles1 + handles2))
     fig.legend(by_label.values(), by_label.keys(), frameon=True, facecolor='white', framealpha=1.0,
                loc='lower right', bbox_to_anchor=(0.85, 0.10), fontsize=fontsz)
@@ -224,13 +232,14 @@ def posImportance(kmer,fs):
     npstd = npc.groupby(['Nucleotide','Position']).std()
     npmean = npmean.reset_index()
     npstd = npstd.reset_index()
+    print(npmean)
     npmean = npmean.pivot(index='Position', columns='Nucleotide', values='v').to_numpy()
     print(npmean)
     npstd = npstd.pivot(index='Position', columns='Nucleotide', values='v').to_numpy()
     print(npstd)
     annot = np.char.add( np.vectorize(lambda v: f'{v:.2f} ± ')(npmean)
                   , np.vectorize(lambda v: f'{v:.2f}')(npstd))
-    sb.heatmap(npmean, annot=annot, fmt='', annot_kws={"size":15})
+    sb.heatmap(npmean, annot=annot, fmt='', annot_kws={"size":15}, xticklabels=['A','C','G','T'], yticklabels=['-2','-1','0','+1','+2'])
     plt.savefig(f'positionimportance.png')
     plt.savefig(f'positionimportance.pdf')
     plt.close()
@@ -246,10 +255,11 @@ def main():
     parser.add_argument('--withmean', action='store_true', default=False)
     parser.add_argument('--withstddev', action='store_true', default=False)
     parser.add_argument('--withlines', action='store_true', default=False)
+    parser.add_argument('--fdr')
     args = parser.parse_args()
     ids = [f for fs in args.inputdirs for f in fs]
     print(ids)
-    plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines)
+    plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines, args.fdr)
     plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
     plotForests(ids)
     posImportance(args.kmer,ids)
