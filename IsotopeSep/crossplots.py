@@ -28,13 +28,14 @@ def plotFDR(fs, k, withmean, withstddev, withlines, fdrselection):
     #df = pd.DataFrame({'cutoff': rs, 'fdr': ys, 'relreads': ns})
     #df.to_csv(f'{fnamepfx}-fdr.csv', index=False)
     fig, ax1 = plt.subplots(figsize=(6, 6))
-    plt.grid(c='grey')
+    plt.grid(color='lightblue', linestyle='--')
     ax2 = ax1.twinx()
+    #ax1.grid(None)
     ax1.set_facecolor('white')
     ax1.set_xlabel('Cutoff', fontsize=fontsz)
+    plt.grid(color='grey')
     ax2.set_ylabel('FDR', fontsize=fontsz)
-    ax2.set_title('False discovery rate', fontsize=titlesz)
-    ax2.grid(None)
+    #ax2.set_title('False discovery rate', fontsize=titlesz)
     ax1.set_ylabel('% reads', fontsize=fontsz)
     # buckets for fdr between 0 and 0.5
     fdr = []
@@ -124,7 +125,7 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
     # horizontal line at error 0.5
     ax.set_xlabel('Samples (ordered by distance)', fontsize=fontsz)
     ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
-    ax.set_title('Error response', fontsize=titlesz)
+    #ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)
     handles, labels = plt.gca().get_legend_handles_labels()
     by_label = OrderedDict(zip(labels, handles))
