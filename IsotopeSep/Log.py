@@ -30,8 +30,8 @@ RANDOM_SEED = 8927
 rng = np.random.default_rng(RANDOM_SEED)
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
-fontsz = 12  # fontsize
-titlesz = 16  # fontsize for title
+fontsz = 18  # fontsize
+titlesz = 26  # fontsize for title
 linew = 2  # line width of important lines
 cOrange = '#d95f02'
 cBlue = '#7570b3'
@@ -381,13 +381,29 @@ def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     print(aom)
     p0 = aom.where(lambda x: x >= 0, drop=True)
     p0 = p0.sortby(p0)
-    p0good = len(p0.where(lambda x: x < 0.5, drop=True))
-    p1 = abs(aom.where(lambda x: x < 0, drop=True))
+    p1 = abs(aom.where(lambda x: x <= 0, drop=True))
     p1 = p1.sortby(p1)
+    minp0p1 = min(len(p0),len(p1))
+    cands = list(range(0,max(len(p0),len(p1))-1))
+    random.shuffle(cands)
+    if (len(p0)>len(p1)):
+        cs = cands[:len(p1)]
+        cs.sort()
+        p0 = p0[cs]
+    if (len(p1)>len(p0)):
+        cs = cands[:len(p0)]
+        cs.sort()
+        p1 = p1[cs]
+    # TODO fixup lengths via sampling
+    p0good = len(p0.where(lambda x: x < 0.5, drop=True))
     p1good = len(p1.where(lambda x: x < 0.5, drop=True))
     _, ax = plt.subplots(figsize=(6, 6))
-    print(p0,p1)
+    print(len(p0),len(p1))
+    # BUG check on NaN data, that prevents this assertion. Sample from the larger vector then to allow printing. Assert failure is likely with bad data, say from Carbon.
     assert len(p0) == len(p1)
+    if (len(p0) != len(p1)):
+        # TODO sample longer one...
+        pass
     df = pd.DataFrame({'p0': p0, 'p1': p1})
     df.to_csv(f'{fnamepfx}-response.csv', index=False)
     ax.set_facecolor('white')
@@ -405,7 +421,7 @@ def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     # horizontal line at error 0.5
     ax.set_xlabel('Samples (ordered by distance)', fontsize=fontsz)
     ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
-    ax.set_title('Error response', fontsize=titlesz)
+    #ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)
     ax.legend(frameon=True, facecolor='white', framealpha=1.0,
               loc='upper left', bbox_to_anchor=(0.1, 0.9))
@@ -504,16 +520,16 @@ def falseDiscoveryRate(fnamepfx, mppmean, obs):
     df = pd.DataFrame({'cutoff': rs, 'fdr': ys, 'relreads': ns})
     df.to_csv(f'{fnamepfx}-fdr.csv', index=False)
     fig, ax1 = plt.subplots(figsize=(6, 6))
-    ax1.plot(rs, ys, color='black', label=f'FDR')
-    plt.grid(c='grey')
+    ax1.grid(None)
     ax1.set_facecolor('white')
+    ax1.plot(rs, ys, color='black', label=f'FDR')
+    ax1.plot(rs, ns, color='blue', label='% reads')
+    ax1.set_ylabel('% reads', fontsize=fontsz)
     ax1.set_xlabel('Cutoff', fontsize=fontsz)
-    ax1.set_ylabel('FDR', fontsize=fontsz)
-    ax1.set_title('False discovery rate', fontsize=titlesz)
+    #ax1.set_title('False discovery rate', fontsize=titlesz)
+    plt.grid(c='grey')
     ax2 = ax1.twinx()
-    ax2.grid(None)
-    ax2.plot(rs, ns, color='blue', label='Fraction of reads')
-    ax2.set_ylabel('Fraction of reads', fontsize=fontsz)
+    ax2.set_ylabel('FDR', fontsize=fontsz)
     fig.legend(frameon=True, facecolor='white', framealpha=1.0,
                loc='lower right', bbox_to_anchor=(0.85, 0.15))
     plt.savefig(f'{fnamepfx}-fdr.png')
