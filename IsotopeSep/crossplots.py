@@ -123,7 +123,7 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
         ax.plot(np.arange(0,1,0.005), np.mean(hist0s, axis=0), color=cOrange, label=zeroLabel)
         ax.plot(np.arange(0,1,0.005), np.mean(hist1s, axis=0), color=cBlue, label=oneLabel)
     # horizontal line at error 0.5
-    ax.set_xlabel('Samples (ordered by distance)', fontsize=fontsz)
+    ax.set_xlabel('Reads(ordered by distance)', fontsize=fontsz)
     ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
     #ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)

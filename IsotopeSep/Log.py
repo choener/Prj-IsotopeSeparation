@@ -419,7 +419,7 @@ def plotErrorResponse(fnamepfx, zeroRel, oneRel, mppmean, obs):
     plt.annotate(f'{p1good / max(1,len(p1)):.2f}',
                  xy=(p1good, 0.4), color=cBlue, fontsize=fontsz)
     # horizontal line at error 0.5
-    ax.set_xlabel('Samples (ordered by distance)', fontsize=fontsz)
+    ax.set_xlabel('Reads (ordered by distance)', fontsize=fontsz)
     ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
     #ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)
