@@ -12,6 +12,7 @@ import arviz as az
 import numpy as np
 from functools import reduce
 import seaborn as sb
+import arviz.labels as azl
 
 az.style.use("arviz-darkgrid")
 az.rcParams["plot.max_subplots"] = 1000
@@ -170,24 +171,34 @@ def plotForests(fs):
                 scs.append((s,c))
             # best
             # collect the *set* of kmers to use
-            kmers += list(reduce(set.union, [set(c[high:]) for (_,c) in scs]))
-            #plotForest(f'{w}-{tyname}-best', [ s.sel(kmer=kmers) for (s,c) in scs ])
-            # worst
-            #kmers = list(reduce(set.union, [set(c[:low]) for (_,c) in scs]))
-            #plotForest(f'{w}-{tyname}-worst', [ s.sel(kmer=kmers) for (s,c) in scs ])
-        # then run plot on unification
-        kmers = list(set(kmers))
-        for w in ["scale", "mad"]:
-            scs = []
-            for t in ts:
-                means = abs(t.posterior[w].mean(("chain","draw")))
-                z = means / 1 # t.posterior["scale"].std(("chain","draw"))
-                s = t.posterior[w].sortby(z)
-                c = z.sortby(z).coords['kmer'].values
-                scs.append((s,c))
+            kmers = list(reduce(set.union, [set(c[high:]) for (_,c) in scs]))
             plotForest(f'{w}-{tyname}-best', [ s.sel(kmer=kmers) for (s,c) in scs ])
-    go (-4,3,"sep",ts)
-    #go (-10,10,"join",[az.concat(ts, dim="draw")])
+            # worst
+            kmers = list(reduce(set.union, [set(c[:low]) for (_,c) in scs]))
+            plotForest(f'{w}-{tyname}-worst', [ s.sel(kmer=kmers) for (s,c) in scs ])
+        # then run plot on unification
+        #kmers = list(set(kmers))
+        #for w in ["scale", "mad"]:
+        #    scs = []
+        #    for t in ts:
+        #        means = abs(t.posterior[w].mean(("chain","draw")))
+        #        z = means / 1 # t.posterior["scale"].std(("chain","draw"))
+        #        s = t.posterior[w].sortby(z)
+        #        c = z.sortby(z).coords['kmer'].values
+        #        scs.append((s,c))
+        #    plotForest(f'{w}-{tyname}-bestqq', [ s.sel(kmer=kmers) for (s,c) in scs ])
+    #go (-4,3,"sep",ts)
+    go (-10,10,"join",[az.concat(ts, dim="draw")])
+
+class MyLabeller(azl.BaseLabeller):
+    def make_label_flat(self, var_name: str, sel: dict, isel: dict):
+        var_name_str = self.var_name_to_str(var_name)
+        sel_str = self.sel_to_str(sel, isel)
+        if not sel_str:
+            return "" if var_name_str is None else var_name_str
+        if var_name_str is None:
+            return sel_str
+        return f"{sel_str}"
 
 def plotForest(name, traces):
     _, _, n = traces[0].shape
@@ -195,6 +206,8 @@ def plotForest(name, traces):
     ySize = min(256, n)
     fig, ax = plt.subplots(figsize=(6, ySize))
     ax.set_facecolor('white')
+    ax.set_xlabel('Weight', fontsize=fontsz)
+    ax.set_ylabel('K-mers', fontsize=fontsz)
     legend = ax.get_legend()
     #if legend is not None:
     #    for text in legend.get_texts():
@@ -204,8 +217,9 @@ def plotForest(name, traces):
     mn = None
     if (len(traces)>1):
         mn = [ f'cross-{i}' for i in list(range(1,len(traces)+1))]
+    labeller = MyLabeller()
     az.plot_forest(traces, var_names=['~p'], figsize=(6,ySize), ax=ax
-                  ,model_names = mn, textsize=fontsz, markersize=14, linewidth=4)
+                  ,model_names = mn, textsize=fontsz, markersize=14, linewidth=4,labeller=labeller)
     plt.savefig(f'{name}.png')
     plt.savefig(f'{name}.pdf')
     plt.close()

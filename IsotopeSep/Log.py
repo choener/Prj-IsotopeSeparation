@@ -17,6 +17,7 @@ import pandas as pd
 import os.path
 import sys
 import csv
+import arviz.labels as azl
 
 import pymc.sampling.jax
 
@@ -465,6 +466,15 @@ def plotMcmcTrace(fnamepfx, kmer, trace):
 
 # Forest plot of parameters.
 
+class MyLabeller(azl.BaseLabeller):
+    def make_label_flat(self, var_name: str, sel: dict, isel: dict):
+        var_name_str = self.var_name_to_str(var_name)
+        sel_str = self.sel_to_str(sel, isel)
+        if not sel_str:
+            return "" if var_name_str is None else var_name_str
+        if var_name_str is None:
+            return sel_str
+        return f"{sel_str}"
 
 def plotForest(fnamepfx, fnamessfx, kmer, trace):
     _, _, n = trace.shape
@@ -473,7 +483,9 @@ def plotForest(fnamepfx, fnamessfx, kmer, trace):
     fig, ax = plt.subplots(figsize=(6, ySize))
     ax.set_facecolor('white')
     plt.grid(c='grey')
-    az.plot_forest(trace, var_names=['~p'], figsize=(6, ySize), ax=ax)
+    #labeller = azl.MapLabeller(var_name_map={"scale": "", "mad": ""})
+    labeller = MyLabeller()
+    az.plot_forest(trace, var_names=['~p'], figsize=(6, ySize), ax=ax, labeller=labeller)
     # legend = ax.get_legend()
     # for text in legend.get_texts():
     #    text.set(fontfamily='monospace')

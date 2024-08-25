@@ -28,29 +28,21 @@ function go {
 
   case $4 in
     0)
-      barcodeZero="taubert-d2o/barcode14.ids"
+      barcodeZero="../_data/carbon/barcodes/barcode20.ids"
       numZero="0.0"
       ;;
-    30)
-      barcodeZero="taubert-d2o/barcode15.ids"
-      numZero="0.3"
-      ;;
     100)
-      barcodeZero="taubert-d2o/barcode16.ids"
+      barcodeZero="../_data/carbon/barcodes/barcode21.ids"
       numZero="1.0"
       ;;
   esac
   case $5 in
     0)
-      barcodeOne="taubert-d2o/barcode14.ids"
+      barcodeOne="../_data/carbon/barcodes/barcode20.ids"
       numOne="0.0"
       ;;
-    30)
-      barcodeOne="taubert-d2o/barcode15.ids"
-      numOne="0.3"
-      ;;
     100)
-      barcodeOne="taubert-d2o/barcode16.ids"
+      barcodeOne="../_data/carbon/barcodes/barcode21.ids"
       numOne="1.0"
       ;;
   esac
@@ -106,59 +98,11 @@ export -f go
 #parallel --jobs 1 train {} {} {} {} {} ::: 1 2 3 4 5
 
 # (fast) tests on small inputs; not super fast but faster than on all data
-go ../_data/d2o/2024-08-25-mini-1-train 5 ../_data/d2o/cross-split-inputs-mini/1 0 30 TRAIN
-go ../_data/d2o/2024-08-25-mini-2-test  5 ../_data/d2o/cross-split-inputs-mini/2 0 30 ../_data/d2o/2024-08-25-mini-1-train
+go ../_data/carbon/2024-08-25-mini-train 5 ../_data/carbon/mini-data 0 100 TRAIN
 
-# run data for 5-fold crossvalidation
-# these are all dwell=no, partial=yes as per defaults
+# go ../_data/carbon/2024-08-25-train 5 ../_data/carbon/prepared-data 0 100 TRAIN
 
-# 0-30 only
-
-go ../_data/d2o/2024-08-25-A-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-A/not-1 0 30 TRAIN
-go ../_data/d2o/2024-08-25-A-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-A/not-2 0 30 TRAIN
-go ../_data/d2o/2024-08-25-A-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-A/not-3 0 30 TRAIN
-go ../_data/d2o/2024-08-25-A-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-A/not-4 0 30 TRAIN
-go ../_data/d2o/2024-08-25-A-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-A/not-5 0 30 TRAIN
-
-go ../_data/d2o/2024-08-25-A-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-A/1 0 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-1
-go ../_data/d2o/2024-08-25-A-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-A/2 0 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-2
-go ../_data/d2o/2024-08-25-A-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-A/3 0 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-3
-go ../_data/d2o/2024-08-25-A-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-A/4 0 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-4
-go ../_data/d2o/2024-08-25-A-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-A/5 0 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-5
-
-
-
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-B/not-1 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-B/not-2 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-B/not-3 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-B/not-4 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-B/not-5 0 30 TRAIN
-
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-B/1 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-1
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-B/2 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-2
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-B/3 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-3
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-B/4 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-4
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-B/5 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-5
-
-
-
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-C/not-1 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-C/not-2 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-C/not-3 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-C/not-4 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-C/not-5 0 30 TRAIN
-
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-C/1 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-1
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-C/2 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-2
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-C/3 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-3
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-C/4 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-4
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-C/5 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-5
-
-
-
-# special runs
-
-## given the 0-30 training data, how well do we test on others?
-go ../_data/d2o/2024-08-25-A-cross-0-30-0-100/test-1 5 ../_data/d2o/cross-split-inputs-A/1 0 100 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-1
-go ../_data/d2o/2024-08-25-A-cross-0-30-100-30/test-1 5 ../_data/d2o/cross-split-inputs-A/1 100 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-1
+# NOTE: if carbon worked, we'd test now
+#
+# go ../_data/carbon/2024-08-25-test 5 ../_data/carbon/prepared-data 0 100 ../_data/carbon/2024-08-25-train
 
