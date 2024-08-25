@@ -1,0 +1,10 @@
+on: [push]
+jobs:
+  test:
+    runs-on:
+      native
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          echo "something buildable is required"
+
