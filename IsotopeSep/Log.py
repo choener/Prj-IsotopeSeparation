@@ -152,6 +152,7 @@ def runModel(zeroRel, oneRel, outputDir, kmer, constructs, train=True, posterior
     madzs = np.concatenate(df['madZ'])
     madzs = np.delete(madzs, np.where(madzs == 0))
     _ , lmbdMadZ = scipy.stats.boxcox(madzs)
+    log.info(f'BoxCox Lambda: {lmbdMadZ}')
     df['madZbc'] = df['madZ'].apply(lambda x: scipy.stats.boxcox(x, lmbda = lmbdMadZ))
 
     # concatenate all 'dwellMean' values, perform boxcox again

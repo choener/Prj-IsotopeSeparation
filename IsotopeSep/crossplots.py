@@ -158,6 +158,8 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
 def plotForests(fs):
     ts = [ az.from_netcdf(join(f,f'5-adagrad-trace.netcdf')) for f in fs ]
     def go(high,low,tyname,ts):
+        # first, construct kmers
+        kmers = []
         for w in ["scale", "mad"]:
             scs = []
             for t in ts:
@@ -168,13 +170,24 @@ def plotForests(fs):
                 scs.append((s,c))
             # best
             # collect the *set* of kmers to use
-            kmers = list(reduce(set.union, [set(c[high:]) for (_,c) in scs]))
-            plotForest(f'{w}-{tyname}-best', [ s.sel(kmer=kmers) for (s,c) in scs ])
+            kmers += list(reduce(set.union, [set(c[high:]) for (_,c) in scs]))
+            #plotForest(f'{w}-{tyname}-best', [ s.sel(kmer=kmers) for (s,c) in scs ])
             # worst
-            kmers = list(reduce(set.union, [set(c[:low]) for (_,c) in scs]))
-            plotForest(f'{w}-{tyname}-worst', [ s.sel(kmer=kmers) for (s,c) in scs ])
-    go (-10,3,"sep",ts)
-    go (-10,10,"join",[az.concat(ts, dim="draw")])
+            #kmers = list(reduce(set.union, [set(c[:low]) for (_,c) in scs]))
+            #plotForest(f'{w}-{tyname}-worst', [ s.sel(kmer=kmers) for (s,c) in scs ])
+        # then run plot on unification
+        kmers = list(set(kmers))
+        for w in ["scale", "mad"]:
+            scs = []
+            for t in ts:
+                means = abs(t.posterior[w].mean(("chain","draw")))
+                z = means / 1 # t.posterior["scale"].std(("chain","draw"))
+                s = t.posterior[w].sortby(z)
+                c = z.sortby(z).coords['kmer'].values
+                scs.append((s,c))
+            plotForest(f'{w}-{tyname}-best', [ s.sel(kmer=kmers) for (s,c) in scs ])
+    go (-4,3,"sep",ts)
+    #go (-10,10,"join",[az.concat(ts, dim="draw")])
 
 def plotForest(name, traces):
     _, _, n = traces[0].shape
@@ -183,16 +196,16 @@ def plotForest(name, traces):
     fig, ax = plt.subplots(figsize=(6, ySize))
     ax.set_facecolor('white')
     legend = ax.get_legend()
-    if legend is not None:
-        for text in legend.get_texts():
-            if text is not None:
-                text.set(fontsize=fontsz)
+    #if legend is not None:
+    #    for text in legend.get_texts():
+    #        if text is not None:
+    #            text.set(fontsize=fontsz)
     plt.grid(c='grey')
     mn = None
     if (len(traces)>1):
         mn = [ f'cross-{i}' for i in list(range(1,len(traces)+1))]
     az.plot_forest(traces, var_names=['~p'], figsize=(6,ySize), ax=ax
-                  ,model_names = mn, textsize=fontsz)
+                  ,model_names = mn, textsize=fontsz, markersize=14, linewidth=4)
     plt.savefig(f'{name}.png')
     plt.savefig(f'{name}.pdf')
     plt.close()
@@ -260,10 +273,10 @@ def main():
     args = parser.parse_args()
     ids = [f for fs in args.inputdirs for f in fs]
     print(ids)
-    plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines, args.fdr)
-    plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
+    #plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines, args.fdr)
+    #plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
     plotForests(ids)
-    posImportance(args.kmer,ids)
+    #posImportance(args.kmer,ids)
 
 if __name__ == "__main__":
     main()
