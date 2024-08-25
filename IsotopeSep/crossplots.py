@@ -124,7 +124,7 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
         ax.plot(np.arange(0,1,0.005), np.mean(hist0s, axis=0), color=cOrange, label=zeroLabel)
         ax.plot(np.arange(0,1,0.005), np.mean(hist1s, axis=0), color=cBlue, label=oneLabel)
     # horizontal line at error 0.5
-    ax.set_xlabel('Reads(ordered by distance)', fontsize=fontsz)
+    ax.set_xlabel('Relative number of reads', fontsize=fontsz)
     ax.set_ylabel('Distance to true class (lower is better)', fontsize=fontsz)
     #ax.set_title('Error response', fontsize=titlesz)
     # ax.legend(frameon=True, framealpha=0.5)
@@ -287,10 +287,10 @@ def main():
     args = parser.parse_args()
     ids = [f for fs in args.inputdirs for f in fs]
     print(ids)
-    #plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines, args.fdr)
-    #plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
+    plotFDR(ids, args.kmer, args.withmean, args.withstddev, args.withlines, args.fdr)
+    plotErrorResponse(ids, args.kmer, args.zerolabel, args.onelabel, args.withmean, args.withstddev, args.withlines)
     plotForests(ids)
-    #posImportance(args.kmer,ids)
+    posImportance(args.kmer,ids)
 
 if __name__ == "__main__":
     main()

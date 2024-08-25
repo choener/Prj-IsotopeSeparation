@@ -98,9 +98,9 @@ export -f go
 #parallel --jobs 1 train {} {} {} {} {} ::: 1 2 3 4 5
 
 # (fast) tests on small inputs; not super fast but faster than on all data
-go ../_data/carbon/2024-08-25-mini-train 5 ../_data/carbon/mini-data 0 100 TRAIN
+go ../_data/carbon/2024-08-25-mini-train 5 ../_data/carbon/mini-data     0 100 TRAIN
 
-# go ../_data/carbon/2024-08-25-train 5 ../_data/carbon/prepared-data 0 100 TRAIN
+go ../_data/carbon/2024-08-25-train      5 ../_data/carbon/prepared_data 0 100 TRAIN
 
 # NOTE: if carbon worked, we'd test now
 #

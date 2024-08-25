@@ -128,32 +128,75 @@ go ../_data/d2o/2024-08-25-A-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs
 
 
 
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-B/not-1 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-B/not-2 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-B/not-3 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-B/not-4 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-B/not-5 0 30 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-B/not-1 0 30 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-B/not-2 0 30 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-B/not-3 0 30 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-B/not-4 0 30 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-B/not-5 0 30 TRAIN
 
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-B/1 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-1
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-B/2 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-2
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-B/3 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-3
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-B/4 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-4
-#go ../_data/d2o/2024-08-25-B-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-B/5 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-5
+go ../_data/d2o/2024-08-25-B-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-B/1 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-1
+go ../_data/d2o/2024-08-25-B-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-B/2 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-2
+go ../_data/d2o/2024-08-25-B-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-B/3 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-3
+go ../_data/d2o/2024-08-25-B-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-B/4 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-4
+go ../_data/d2o/2024-08-25-B-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-B/5 0 30 ../_data/d2o/2024-08-25-B-cross-0-30/train-not-5
 
 
 
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-C/not-1 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-C/not-2 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-C/not-3 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-C/not-4 0 30 TRAIN
-#go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-C/not-5 0 30 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-1 5 ../_data/d2o/cross-split-inputs-C/not-1 0 30 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-2 5 ../_data/d2o/cross-split-inputs-C/not-2 0 30 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-3 5 ../_data/d2o/cross-split-inputs-C/not-3 0 30 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-4 5 ../_data/d2o/cross-split-inputs-C/not-4 0 30 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-30/train-not-5 5 ../_data/d2o/cross-split-inputs-C/not-5 0 30 TRAIN
 
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-C/1 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-1
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-C/2 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-2
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-C/3 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-3
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-C/4 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-4
-#go ../_data/d2o/2024-08-25-C-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-C/5 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-5
+go ../_data/d2o/2024-08-25-C-cross-0-30/test-1 5 ../_data/d2o/cross-split-inputs-C/1 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-1
+go ../_data/d2o/2024-08-25-C-cross-0-30/test-2 5 ../_data/d2o/cross-split-inputs-C/2 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-2
+go ../_data/d2o/2024-08-25-C-cross-0-30/test-3 5 ../_data/d2o/cross-split-inputs-C/3 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-3
+go ../_data/d2o/2024-08-25-C-cross-0-30/test-4 5 ../_data/d2o/cross-split-inputs-C/4 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-4
+go ../_data/d2o/2024-08-25-C-cross-0-30/test-5 5 ../_data/d2o/cross-split-inputs-C/5 0 30 ../_data/d2o/2024-08-25-C-cross-0-30/train-not-5
 
+
+
+# 0-100 only
+
+go ../_data/d2o/2024-08-25-A-cross-0-100/train-not-1 5 ../_data/d2o/cross-split-inputs-A/not-1 0 100 TRAIN
+go ../_data/d2o/2024-08-25-A-cross-0-100/train-not-2 5 ../_data/d2o/cross-split-inputs-A/not-2 0 100 TRAIN
+go ../_data/d2o/2024-08-25-A-cross-0-100/train-not-3 5 ../_data/d2o/cross-split-inputs-A/not-3 0 100 TRAIN
+go ../_data/d2o/2024-08-25-A-cross-0-100/train-not-4 5 ../_data/d2o/cross-split-inputs-A/not-4 0 100 TRAIN
+go ../_data/d2o/2024-08-25-A-cross-0-100/train-not-5 5 ../_data/d2o/cross-split-inputs-A/not-5 0 100 TRAIN
+
+go ../_data/d2o/2024-08-25-A-cross-0-100/test-1 5 ../_data/d2o/cross-split-inputs-A/1 0 100 ../_data/d2o/2024-08-25-A-cross-0-100/train-not-1
+go ../_data/d2o/2024-08-25-A-cross-0-100/test-2 5 ../_data/d2o/cross-split-inputs-A/2 0 100 ../_data/d2o/2024-08-25-A-cross-0-100/train-not-2
+go ../_data/d2o/2024-08-25-A-cross-0-100/test-3 5 ../_data/d2o/cross-split-inputs-A/3 0 100 ../_data/d2o/2024-08-25-A-cross-0-100/train-not-3
+go ../_data/d2o/2024-08-25-A-cross-0-100/test-4 5 ../_data/d2o/cross-split-inputs-A/4 0 100 ../_data/d2o/2024-08-25-A-cross-0-100/train-not-4
+go ../_data/d2o/2024-08-25-A-cross-0-100/test-5 5 ../_data/d2o/cross-split-inputs-A/5 0 100 ../_data/d2o/2024-08-25-A-cross-0-100/train-not-5
+
+
+
+go ../_data/d2o/2024-08-25-B-cross-0-100/train-not-1 5 ../_data/d2o/cross-split-inputs-B/not-1 0 100 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-100/train-not-2 5 ../_data/d2o/cross-split-inputs-B/not-2 0 100 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-100/train-not-3 5 ../_data/d2o/cross-split-inputs-B/not-3 0 100 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-100/train-not-4 5 ../_data/d2o/cross-split-inputs-B/not-4 0 100 TRAIN
+go ../_data/d2o/2024-08-25-B-cross-0-100/train-not-5 5 ../_data/d2o/cross-split-inputs-B/not-5 0 100 TRAIN
+
+go ../_data/d2o/2024-08-25-B-cross-0-100/test-1 5 ../_data/d2o/cross-split-inputs-B/1 0 100 ../_data/d2o/2024-08-25-B-cross-0-100/train-not-1
+go ../_data/d2o/2024-08-25-B-cross-0-100/test-2 5 ../_data/d2o/cross-split-inputs-B/2 0 100 ../_data/d2o/2024-08-25-B-cross-0-100/train-not-2
+go ../_data/d2o/2024-08-25-B-cross-0-100/test-3 5 ../_data/d2o/cross-split-inputs-B/3 0 100 ../_data/d2o/2024-08-25-B-cross-0-100/train-not-3
+go ../_data/d2o/2024-08-25-B-cross-0-100/test-4 5 ../_data/d2o/cross-split-inputs-B/4 0 100 ../_data/d2o/2024-08-25-B-cross-0-100/train-not-4
+go ../_data/d2o/2024-08-25-B-cross-0-100/test-5 5 ../_data/d2o/cross-split-inputs-B/5 0 100 ../_data/d2o/2024-08-25-B-cross-0-100/train-not-5
+
+
+
+go ../_data/d2o/2024-08-25-C-cross-0-100/train-not-1 5 ../_data/d2o/cross-split-inputs-C/not-1 0 100 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-100/train-not-2 5 ../_data/d2o/cross-split-inputs-C/not-2 0 100 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-100/train-not-3 5 ../_data/d2o/cross-split-inputs-C/not-3 0 100 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-100/train-not-4 5 ../_data/d2o/cross-split-inputs-C/not-4 0 100 TRAIN
+go ../_data/d2o/2024-08-25-C-cross-0-100/train-not-5 5 ../_data/d2o/cross-split-inputs-C/not-5 0 100 TRAIN
+
+go ../_data/d2o/2024-08-25-C-cross-0-100/test-1 5 ../_data/d2o/cross-split-inputs-C/1 0 100 ../_data/d2o/2024-08-25-C-cross-0-100/train-not-1
+go ../_data/d2o/2024-08-25-C-cross-0-100/test-2 5 ../_data/d2o/cross-split-inputs-C/2 0 100 ../_data/d2o/2024-08-25-C-cross-0-100/train-not-2
+go ../_data/d2o/2024-08-25-C-cross-0-100/test-3 5 ../_data/d2o/cross-split-inputs-C/3 0 100 ../_data/d2o/2024-08-25-C-cross-0-100/train-not-3
+go ../_data/d2o/2024-08-25-C-cross-0-100/test-4 5 ../_data/d2o/cross-split-inputs-C/4 0 100 ../_data/d2o/2024-08-25-C-cross-0-100/train-not-4
+go ../_data/d2o/2024-08-25-C-cross-0-100/test-5 5 ../_data/d2o/cross-split-inputs-C/5 0 100 ../_data/d2o/2024-08-25-C-cross-0-100/train-not-5
 
 
 # special runs
