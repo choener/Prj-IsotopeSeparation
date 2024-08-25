@@ -44,13 +44,14 @@
       devShell = let
         # pkgs = import nixpkgs { inherit system; overlays = [ devshell.overlay ]; };
       in pkgs.devshell.mkShell {
-        devshell.packages = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs tk ]; # cudatoolkit
+        devshell.packages = with pkgs; [ pyenv hdf5 ont_vbz_compression nodejs tk stdenv.cc ]; # cudatoolkit
         env = [
           { name = "HDF5_PLUGIN_PATH"; value = "${pkgs.hdf5}/lib:${pkgs.ont_vbz_compression}/lib"; }
           { name = "PYTHONPATH"; eval = "$PRJ_ROOT/ONTlib:$PRJ_ROOT/IsotopeSep"; }
           { name = "MKL_NUM_THREADS"; value = 1; }
           { name = "OMP_NUM_THREADS"; value = 1; }
           { name = "TK_LIBRARY"; value = "${pkgs.tk}/lib/${pkgs.tk.libPrefix}"; }
+          { name = "LD_LIBRARY_PATH"; value = "${pkgs.stdenv.cc.cc.lib}/lib/"; }
         ];
         imports = [ (pkgs.devshell.importTOML ./devshell.toml) ];
       };
