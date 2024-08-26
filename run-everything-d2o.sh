@@ -205,3 +205,11 @@ go ../_data/d2o/2024-08-25-C-cross-0-100/test-5 5 ../_data/d2o/cross-split-input
 go ../_data/d2o/2024-08-25-A-cross-0-30-0-100/test-1 5 ../_data/d2o/cross-split-inputs-A/1 0 100 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-1
 go ../_data/d2o/2024-08-25-A-cross-0-30-100-30/test-1 5 ../_data/d2o/cross-split-inputs-A/1 100 30 ../_data/d2o/2024-08-25-A-cross-0-30/train-not-1
 
+
+
+# NOW run the cross plotting functions
+
+# TODO: this would be how to run them. need to script this, but it is only three runs in total ...
+
+# ./IsotopeSep/crossplots.py --kmer 5 --inputdirs ../_data/carbon/2024-08-25-train --withmean --withstddev --zerolabel 0% --onelabel 100%
+
