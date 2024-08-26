@@ -53,10 +53,10 @@ def plotFDR(fs, k, withmean, withstddev, withlines, fdrselection):
     if withstddev:
         m = np.mean(fdr, axis=0)
         s = np.std(fdr, axis=0)
-        ax2.fill_between(df.cutoff, m+s,m-s, color='black', alpha=0.3, label='FDR')
+        ax2.fill_between(df.cutoff, m+s,np.fmax(0,m-s), color='black', alpha=0.3, label='FDR')
         m = np.mean(relreads, axis=0)
         s = np.std(relreads, axis=0)
-        ax1.fill_between(df.cutoff, m+s,m-s, color='blue', alpha=0.3, label='% reads')
+        ax1.fill_between(df.cutoff, m+s,np.fmax(0,m-s), color='blue', alpha=0.3, label='% reads')
     if withmean:
         fdrmean = np.mean(fdr,axis=0)
         relreadsmean = np.mean(relreads,axis=0)
@@ -116,10 +116,10 @@ def plotErrorResponse(fs, k, zeroLabel, oneLabel, withmean, withstddev, withline
     if withstddev:
         m = np.mean(hist0s, axis=0)
         s = np.std(hist0s, axis=0)
-        ax.fill_between(np.arange(0,1,0.005), m+s,m-s, color=cOrange, alpha=0.3, label=zeroLabel)
+        ax.fill_between(np.arange(0,1,0.005), m+s,np.fmax(0,m-s), color=cOrange, alpha=0.3, label=zeroLabel)
         m = np.mean(hist1s, axis=0)
         s = np.std(hist1s, axis=0)
-        ax.fill_between(np.arange(0,1,0.005), m+s,m-s, color=cBlue, alpha=0.3, label=oneLabel)
+        ax.fill_between(np.arange(0,1,0.005), m+s,np.fmax(0,m-s), color=cBlue, alpha=0.3, label=oneLabel)
     if withmean:
         ax.plot(np.arange(0,1,0.005), np.mean(hist0s, axis=0), color=cOrange, label=zeroLabel)
         ax.plot(np.arange(0,1,0.005), np.mean(hist1s, axis=0), color=cBlue, label=oneLabel)
