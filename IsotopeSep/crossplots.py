@@ -75,7 +75,7 @@ def plotFDR(fs, k, withmean, withstddev, withlines, fdrselection):
     handles2, labels2 = ax2.get_legend_handles_labels()
     by_label = OrderedDict(zip(labels1 + labels2, handles1 + handles2))
     fig.legend(by_label.values(), by_label.keys(), frameon=True, facecolor='white', framealpha=1.0,
-               loc='lower right', bbox_to_anchor=(0.85, 0.10), fontsize=fontsz)
+               loc='upper left', bbox_to_anchor=(0.15, 0.99), fontsize=fontsz)
     plt.xticks(fontsize = fontsz)
     plt.yticks(fontsize = fontsz)
     plt.savefig(f'{k}-cross-fdr.png')
